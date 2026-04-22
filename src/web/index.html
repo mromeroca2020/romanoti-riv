@@ -15,15 +15,23 @@
 
     <section class="card">
       <h2>Demo Case</h2>
-      <p><strong>Rack:</strong> H10</p>
-      <p><strong>Device:</strong> NOMT10TS03B</p>
-      <p><strong>Action:</strong> Power Cycle</p>
+
+      <label for="ticketInput"><strong>Ticket Description</strong></label>
+      <textarea id="ticketInput" rows="4">Power cycle device in rack H10</textarea>
+
       <button id="runDemoBtn">Run Verification</button>
     </section>
 
     <section class="card">
       <h2>Verification Report</h2>
       <pre id="reportOutput">No report generated yet.</pre>
+    </section>
+
+    <section class="card">
+      <h2>Generated Runbook</h2>
+      <ol id="runbookOutput">
+        <li>No runbook generated yet.</li>
+      </ol>
     </section>
 
     <section class="card">

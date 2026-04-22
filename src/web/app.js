@@ -1,29 +1,41 @@
-function generateReport() {
-  return `=== RIV Verification Report ===
-Total checks: 3
-Passed: 3
-Failed: 0
+document.getElementById("runDemoBtn").addEventListener("click", async () => {
+  const ticket = document.getElementById("ticketInput").value;
 
-[OK] Device Power Cycle - Power cycle executed successfully on rack H10
-[OK] Link Status - Link/activity lights are active
-[OK] Service Access - User confirmed login and access`;
-}
+  try {
+    const response = await fetch("http://127.0.0.1:5000/run-demo", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ ticket: ticket })
+    });
 
-function generateClosure() {
-  return `Controlled power cycle was performed on the requested device in rack H10. Device NOMT10TS03B is confirmed operational after verification checks. Stakeholder Faizan has been informed. Issue resolved.`;
-}
+    const data = await response.json();
 
-document.getElementById("runDemoBtn").addEventListener("click", () => {
-  document.getElementById("reportOutput").textContent = generateReport();
-  document.getElementById("closureOutput").value = generateClosure();
+    // Report
+    document.getElementById("reportOutput").textContent = data.report;
+
+    // Closure
+    document.getElementById("closureOutput").value = data.closure;
+
+    // Runbook
+    const runbookList = document.getElementById("runbookOutput");
+    runbookList.innerHTML = "";
+
+    data.runbook.forEach((step, index) => {
+      const li = document.createElement("li");
+      li.textContent = step;
+      runbookList.appendChild(li);
+    });
+
+  } catch (error) {
+    console.error(error);
+    alert("Error connecting to backend");
+  }
 });
 
 document.getElementById("copyClosureBtn").addEventListener("click", async () => {
   const text = document.getElementById("closureOutput").value;
-  try {
-    await navigator.clipboard.writeText(text);
-    alert("Closure text copied.");
-  } catch (error) {
-    alert("Unable to copy closure text.");
-  }
+  await navigator.clipboard.writeText(text);
+  alert("Closure text copied.");
 });
