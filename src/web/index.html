@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Romanoti RIV Demo</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Romanoti Infrastructure Visualizer (RIV)</h1>
+      <p>Operational verification and closure demo</p>
+    </header>
+
+    <section class="card">
+      <h2>Demo Case</h2>
+      <p><strong>Rack:</strong> H10</p>
+      <p><strong>Device:</strong> NOMT10TS03B</p>
+      <p><strong>Action:</strong> Power Cycle</p>
+      <button id="runDemoBtn">Run Verification</button>
+    </section>
+
+    <section class="card">
+      <h2>Verification Report</h2>
+      <pre id="reportOutput">No report generated yet.</pre>
+    </section>
+
+    <section class="card">
+      <h2>Suggested Ticket Closure</h2>
+      <textarea id="closureOutput" rows="6" readonly>No closure generated yet.</textarea>
+      <button id="copyClosureBtn">Copy Closure Text</button>
+    </section>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
