@@ -14,12 +14,29 @@
     </header>
 
     <section class="card">
-      <h2>Demo Case</h2>
+      <h2>Ticket Input</h2>
 
-      <label for="ticketInput"><strong>Ticket Description</strong></label>
-      <textarea id="ticketInput" rows="4">Power cycle device in rack H10</textarea>
+      <label for="ticketNumber"><strong>Ticket Number</strong></label>
+      <input type="text" id="ticketNumber" value="SCTASK13197644" />
 
-      <button id="runDemoBtn">Run Verification</button>
+      <br /><br />
+
+      <label for="shortDescription"><strong>Short Description</strong></label>
+      <input type="text" id="shortDescription" value="MT10 || 20-Apr-26 || Others Specify" />
+
+      <br /><br />
+
+      <label for="description"><strong>Description</strong></label>
+      <textarea id="description" rows="4">Work with Justin around power cycling nomt10ts03b terminal server</textarea>
+
+      <br /><br />
+
+      <button id="runDemoBtn">Analyze Ticket</button>
+    </section>
+
+    <section class="card">
+      <h2>Parsed Ticket</h2>
+      <pre id="parsedOutput">No ticket analyzed yet.</pre>
     </section>
 
     <section class="card">

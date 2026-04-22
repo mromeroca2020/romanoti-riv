@@ -60,3 +60,58 @@ textarea {
   resize: vertical;
   font-family: Arial, sans-serif;
 }
+select {
+  width: 100%;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  margin-top: 8px;
+  font-size: 14px;
+  background: #fff;
+}
+select {
+  width: 100%;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  margin-top: 8px;
+  font-size: 14px;
+  background: #fff;
+  position: relative;
+  z-index: 1;
+}
+
+textarea {
+  width: 100%;
+  margin-top: 10px;
+}
+textarea:focus {
+  outline: none;
+  border: 2px solid #0a58ca;
+  box-shadow: 0 0 5px rgba(10, 88, 202, 0.3);
+}
+.highlight-btn {
+  animation: pulse 0.6s ease-in-out 2;
+  background-color: #2563eb !important;
+  color: white;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+input,
+select,
+textarea {
+  width: 100%;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+textarea {
+  resize: vertical;
+}

@@ -3,6 +3,7 @@ from flask_cors import CORS
 from src.engine.verification_engine import VerificationEngine
 from src.engine.closure_generator import ClosureGenerator
 from src.engine.runbook_generator import RunbookGenerator
+from src.engine.ticket_parser import TicketParser
 
 app = Flask(__name__)
 CORS(app)
@@ -10,20 +11,29 @@ CORS(app)
 @app.route("/run-demo", methods=["POST"])
 def run_demo():
     data = request.get_json()
-    ticket = data.get("ticket", "Power cycle device in rack H10")
+
+    ticket_number = data.get("ticket_number", "")
+    short_description = data.get("short_description", "")
+    description = data.get("description", "")
+
+    parser = TicketParser()
+    parsed = parser.parse(ticket_number, short_description, description)
+
+    service_type = parsed["service_type"]
+    device = parsed["device"]
+    rack = parsed["rack"]
 
     riv = VerificationEngine()
     closure = ClosureGenerator()
     runbook_generator = RunbookGenerator()
 
-    runbook = runbook_generator.generate(ticket)
-    ticket_lower = ticket.lower()
+    runbook = runbook_generator.generate(service_type, device, rack)
 
-    if "patch" in ticket_lower or "cable" in ticket_lower:
+    if service_type == "patch_verification":
         riv.add_check(
             name="Patch Verification",
             result=True,
-            details="Patch connection verified successfully"
+            details=f"Patch connection verified successfully for {device}"
         )
         riv.add_check(
             name="Link Status",
@@ -39,21 +49,21 @@ def run_demo():
         report = riv.generate_report()
 
         closure_text = (
-            "Patch verification was completed successfully on the requested connection. "
-            "Link/activity indicators were confirmed and connectivity validation was successful. "
-            "Stakeholder has been informed. Issue resolved."
+            f"Patch verification was completed successfully for device {device} in rack {rack}. "
+            f"Link/activity indicators were confirmed and connectivity validation was successful. "
+            f"Stakeholder has been informed. Issue resolved."
         )
 
-    elif "verify device" in ticket_lower or "rack validation" in ticket_lower:
+    elif service_type == "rack_validation":
         riv.add_check(
             name="Rack Identification",
             result=True,
-            details="Rack H10 identified correctly"
+            details=f"Rack {rack} identified correctly"
         )
         riv.add_check(
             name="Device Validation",
             result=True,
-            details="Device labels and mounting position verified"
+            details=f"Device {device} verified in expected position"
         )
         riv.add_check(
             name="Power Connection Check",
@@ -64,16 +74,16 @@ def run_demo():
         report = riv.generate_report()
 
         closure_text = (
-            "Rack and device validation was completed successfully. "
-            "Equipment identification, mounting position, and power connections were verified. "
-            "Stakeholder has been informed. Issue resolved."
+            f"Rack and device validation was completed successfully for device {device} in rack {rack}. "
+            f"Equipment identification, mounting position, and power connections were verified. "
+            f"Stakeholder has been informed. Issue resolved."
         )
 
-    elif "rack mount" in ticket_lower or "mount verification" in ticket_lower:
+    elif service_type == "rack_mount_verification":
         riv.add_check(
             name="Rack Unit Placement",
             result=True,
-            details="Device is installed in the expected rack position"
+            details=f"Device {device} is installed in the expected rack position"
         )
         riv.add_check(
             name="Mounting Hardware",
@@ -89,12 +99,12 @@ def run_demo():
         report = riv.generate_report()
 
         closure_text = (
-            "Device rack mount verification was completed successfully. "
-            "Rack unit placement, mounting hardware, and physical stability were verified. "
-            "Stakeholder has been informed. Issue resolved."
+            f"Device rack mount verification was completed successfully for device {device} in rack {rack}. "
+            f"Rack unit placement, mounting hardware, and physical stability were verified. "
+            f"Stakeholder has been informed. Issue resolved."
         )
 
-    elif "connectivity test" in ticket_lower or "connection test" in ticket_lower or "device connectivity" in ticket_lower:
+    elif service_type == "device_connectivity_test":
         riv.add_check(
             name="Physical Link Check",
             result=True,
@@ -114,16 +124,16 @@ def run_demo():
         report = riv.generate_report()
 
         closure_text = (
-            "Device connectivity test was completed successfully. "
-            "Physical link status, port verification, and connectivity confirmation were completed. "
-            "Stakeholder has been informed. Issue resolved."
+            f"Device connectivity test was completed successfully for device {device} in rack {rack}. "
+            f"Physical link status, port verification, and connectivity confirmation were completed. "
+            f"Stakeholder has been informed. Issue resolved."
         )
 
-    else:
+    elif service_type == "power_cycle":
         riv.add_check(
             name="Device Power Cycle",
             result=True,
-            details="Power cycle executed successfully on rack H10"
+            details=f"Power cycle executed successfully on device {device}"
         )
         riv.add_check(
             name="Link Status",
@@ -139,14 +149,38 @@ def run_demo():
         report = riv.generate_report()
 
         closure_text = closure.generate_power_cycle_closure(
-            rack="H10",
-            device="NOMT10TS03B",
-            notified_person="Faizan",
+            rack=rack,
+            device=device,
+            notified_person="Stakeholder",
             service_restored=True
         )
 
+    else:
+        riv.add_check(
+            name="Task Execution",
+            result=True,
+            details=f"Task completed for device {device}"
+        )
+        riv.add_check(
+            name="Validation",
+            result=True,
+            details="Requested validation completed"
+        )
+        riv.add_check(
+            name="Stakeholder Notification",
+            result=True,
+            details="Stakeholder informed"
+        )
+
+        report = riv.generate_report()
+
+        closure_text = (
+            f"Requested task was completed successfully for device {device} in rack {rack}. "
+            f"Validation was performed and stakeholder was informed. Issue resolved."
+        )
+
     return jsonify({
-        "ticket": ticket,
+        "parsed_ticket": parsed,
         "runbook": runbook,
         "report": report,
         "closure": closure_text
