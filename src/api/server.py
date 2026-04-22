@@ -17,7 +17,6 @@ def run_demo():
     runbook_generator = RunbookGenerator()
 
     runbook = runbook_generator.generate(ticket)
-
     ticket_lower = ticket.lower()
 
     if "patch" in ticket_lower or "cable" in ticket_lower:
@@ -67,6 +66,56 @@ def run_demo():
         closure_text = (
             "Rack and device validation was completed successfully. "
             "Equipment identification, mounting position, and power connections were verified. "
+            "Stakeholder has been informed. Issue resolved."
+        )
+
+    elif "rack mount" in ticket_lower or "mount verification" in ticket_lower:
+        riv.add_check(
+            name="Rack Unit Placement",
+            result=True,
+            details="Device is installed in the expected rack position"
+        )
+        riv.add_check(
+            name="Mounting Hardware",
+            result=True,
+            details="Mounting ears and screws are secure"
+        )
+        riv.add_check(
+            name="Physical Stability",
+            result=True,
+            details="Device is stable and properly aligned"
+        )
+
+        report = riv.generate_report()
+
+        closure_text = (
+            "Device rack mount verification was completed successfully. "
+            "Rack unit placement, mounting hardware, and physical stability were verified. "
+            "Stakeholder has been informed. Issue resolved."
+        )
+
+    elif "connectivity test" in ticket_lower or "connection test" in ticket_lower or "device connectivity" in ticket_lower:
+        riv.add_check(
+            name="Physical Link Check",
+            result=True,
+            details="Link/activity indicators verified"
+        )
+        riv.add_check(
+            name="Port Verification",
+            result=True,
+            details="Required ports and cable seating verified"
+        )
+        riv.add_check(
+            name="Connectivity Confirmation",
+            result=True,
+            details="Connectivity confirmed with remote engineer"
+        )
+
+        report = riv.generate_report()
+
+        closure_text = (
+            "Device connectivity test was completed successfully. "
+            "Physical link status, port verification, and connectivity confirmation were completed. "
             "Stakeholder has been informed. Issue resolved."
         )
 

@@ -3,10 +3,6 @@ class RunbookGenerator:
         pass
 
     def generate(self, ticket_description: str):
-        """
-        Generates a simple runbook based on ticket description.
-        """
-
         ticket = ticket_description.lower()
 
         if "power cycle" in ticket:
@@ -18,12 +14,14 @@ class RunbookGenerator:
         elif "verify device" in ticket or "rack validation" in ticket:
             return self._rack_validation_runbook(ticket_description)
 
+        elif "rack mount" in ticket or "mount verification" in ticket:
+            return self._rack_mount_runbook(ticket_description)
+
+        elif "connectivity test" in ticket or "connection test" in ticket or "device connectivity" in ticket:
+            return self._connectivity_test_runbook(ticket_description)
+
         else:
             return self._generic_runbook(ticket_description)
-
-    # =========================
-    # RUNBOOK TYPES
-    # =========================
 
     def _power_cycle_runbook(self, ticket):
         return [
@@ -57,6 +55,28 @@ class RunbookGenerator:
             "Verify power connections",
             "Take validation photos if required",
             "Report discrepancies"
+        ]
+
+    def _rack_mount_runbook(self, ticket):
+        return [
+            "Locate the target rack and device position",
+            "Verify rack unit placement",
+            "Confirm mounting ears and screws are secured",
+            "Check device alignment and physical stability",
+            "Verify front and rear clearance",
+            "Inspect cable strain and routing",
+            "Document rack mount condition"
+        ]
+
+    def _connectivity_test_runbook(self, ticket):
+        return [
+            "Locate the target device",
+            "Verify physical link/activity lights",
+            "Check cable seating on all required ports",
+            "Confirm port status with remote engineer",
+            "Perform basic reachability test if applicable",
+            "Validate service access or session establishment",
+            "Document connectivity results"
         ]
 
     def _generic_runbook(self, ticket):
