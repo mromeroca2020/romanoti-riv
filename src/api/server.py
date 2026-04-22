@@ -8,6 +8,7 @@ from src.engine.ticket_parser import TicketParser
 app = Flask(__name__)
 CORS(app)
 
+
 @app.route("/run-demo", methods=["POST"])
 def run_demo():
     data = request.get_json()
@@ -185,6 +186,7 @@ def run_demo():
         "report": report,
         "closure": closure_text
     })
+
 
 if __name__ == "__main__":
     app.run(debug=True)
