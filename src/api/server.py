@@ -11,7 +11,7 @@ CORS(app)
 
 @app.route("/run-demo", methods=["POST"])
 def run_demo():
-    data = request.get_json()
+    data = request.get_json() or {}
 
     ticket_number = data.get("ticket_number", "")
     short_description = data.get("short_description", "")
@@ -21,7 +21,7 @@ def run_demo():
     parsed = parser.parse(ticket_number, short_description, description)
 
     service_type = parsed["service_type"]
-    device = parsed["device"]
+    device = parsed["device_source"]
     rack = parsed["rack"]
 
     riv = VerificationEngine()
@@ -52,7 +52,7 @@ def run_demo():
         closure_text = (
             f"Patch verification was completed successfully for device {device} in rack {rack}. "
             f"Link/activity indicators were confirmed and connectivity validation was successful. "
-            f"Stakeholder has been informed. Issue resolved."
+            f"Relevant stakeholder has been informed. Issue resolved."
         )
 
     elif service_type == "rack_validation":
@@ -77,7 +77,7 @@ def run_demo():
         closure_text = (
             f"Rack and device validation was completed successfully for device {device} in rack {rack}. "
             f"Equipment identification, mounting position, and power connections were verified. "
-            f"Stakeholder has been informed. Issue resolved."
+            f"Relevant stakeholder has been informed. Issue resolved."
         )
 
     elif service_type == "rack_mount_verification":
@@ -102,7 +102,7 @@ def run_demo():
         closure_text = (
             f"Device rack mount verification was completed successfully for device {device} in rack {rack}. "
             f"Rack unit placement, mounting hardware, and physical stability were verified. "
-            f"Stakeholder has been informed. Issue resolved."
+            f"Relevant stakeholder has been informed. Issue resolved."
         )
 
     elif service_type == "device_connectivity_test":
@@ -127,7 +127,7 @@ def run_demo():
         closure_text = (
             f"Device connectivity test was completed successfully for device {device} in rack {rack}. "
             f"Physical link status, port verification, and connectivity confirmation were completed. "
-            f"Stakeholder has been informed. Issue resolved."
+            f"Relevant stakeholder has been informed. Issue resolved."
         )
 
     elif service_type == "power_cycle":
@@ -152,7 +152,7 @@ def run_demo():
         closure_text = closure.generate_power_cycle_closure(
             rack=rack,
             device=device,
-            notified_person="Stakeholder",
+            notified_person="Relevant stakeholder",
             service_restored=True
         )
 
@@ -170,14 +170,14 @@ def run_demo():
         riv.add_check(
             name="Stakeholder Notification",
             result=True,
-            details="Stakeholder informed"
+            details="Relevant stakeholder informed"
         )
 
         report = riv.generate_report()
 
         closure_text = (
             f"Requested task was completed successfully for device {device} in rack {rack}. "
-            f"Validation was performed and stakeholder was informed. Issue resolved."
+            f"Validation was performed and the relevant stakeholder was informed. Issue resolved."
         )
 
     return jsonify({
