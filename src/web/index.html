@@ -14,24 +14,36 @@
     </header>
 
     <section class="card">
-      <h2>Ticket Input</h2>
+      <h2>Service Request Builder</h2>
+
+      <label for="serviceType"><strong>Service Type</strong></label>
+      <select id="serviceType">
+        <option value="">-- Select service type --</option>
+        <option value="patch_same_rack">Patch - Same Rack</option>
+        <option value="patch_cross_rack">Patch - Cross Rack</option>
+        <option value="patch_ohu">Patch - To Overhead Unit</option>
+        <option value="power_cycle">Power Cycle</option>
+        <option value="port_validation">Port Validation - Single Device</option>
+        <option value="redundant_connectivity">Redundant Connectivity / A-B</option>
+        <option value="network_device_task">Network Device Task</option>
+        <option value="server_task">Server Task</option>
+      </select>
+
+      <br /><br />
 
       <label for="ticketNumber"><strong>Ticket Number</strong></label>
       <input type="text" id="ticketNumber" value="SCTASK13197644" />
 
       <br /><br />
 
-      <label for="shortDescription"><strong>Short Description</strong></label>
-      <input type="text" id="shortDescription" value="MT10 || 20-Apr-26 || Others Specify" />
+      <div id="dynamicFields"></div>
+
+      <label for="generatedDescription"><strong>Generated Ticket Description</strong></label>
+      <textarea id="generatedDescription" rows="6" readonly>No ticket description generated yet.</textarea>
 
       <br /><br />
 
-      <label for="description"><strong>Description</strong></label>
-      <textarea id="description" rows="4">Work with Justin around power cycling nomt10ts03b terminal server</textarea>
-
-      <br /><br />
-
-      <button id="runDemoBtn">Analyze Ticket</button>
+      <button id="analyzeBtn">Analyze Ticket</button>
     </section>
 
     <section class="card">
