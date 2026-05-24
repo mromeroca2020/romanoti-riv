@@ -14,6 +14,17 @@
     </header>
 
     <section class="card">
+      <h2>Bulk Patch Assistant</h2>
+
+      <input type="file" id="excelFile" accept=".xlsx" />
+      <br /><br />
+
+      <button type="button" id="uploadExcelBtn">Upload Excel</button>
+
+      <pre id="bulkOutput">No Excel processed yet.</pre>
+    </section>
+
+    <section class="card">
       <h2>Service Request Builder</h2>
 
       <label for="serviceType"><strong>Service Type</strong></label>
@@ -42,8 +53,8 @@
       <textarea id="generatedDescription" rows="6" readonly>No ticket description generated yet.</textarea>
 
       <br /><br />
- 
-      <button id="analyzeBtn">Analyze Ticket</button>
+
+      <button type="button" id="analyzeBtn">Analyze Ticket</button>
     </section>
 
     <section class="card">
@@ -66,7 +77,7 @@
     <section class="card">
       <h2>Suggested Ticket Closure</h2>
       <textarea id="closureOutput" rows="6" readonly>No closure generated yet.</textarea>
-      <button id="copyClosureBtn">Copy Closure Text</button>
+      <button type="button" id="copyClosureBtn">Copy Closure Text</button>
     </section>
   </div>
 

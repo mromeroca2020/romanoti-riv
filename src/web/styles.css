@@ -115,3 +115,29 @@ textarea {
 textarea {
   resize: vertical;
 }
+.task-card {
+  border: 1px solid #ccc;
+  border-radius: 10px;
+  padding: 15px;
+  margin-bottom: 15px;
+  background: #f9f9f9;
+}
+
+.task-card h4 {
+  margin-top: 0;
+}
+
+.ok {
+  color: green;
+  font-weight: bold;
+}
+
+.error {
+  color: red;
+  font-weight: bold;
+}
+
+.warning {
+  color: orange;
+  font-weight: bold;
+}
