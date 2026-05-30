@@ -169,6 +169,10 @@ class TicketParser:
             patterns = [
                 r"\bfrom\s+([a-z0-9-]+)\s+port\b",
                 r"\bsource device\s+([a-z0-9-]+)\b",
+                r"\bpower cycling(?: device)?\s+([a-z0-9-]+)\b",
+                r"\bpower cycle(?: device)?\s+([a-z0-9-]+)\b",
+                r"\breboot(?:ing)?(?: device)?\s+([a-z0-9-]+)\b",
+                r"\bdevice\s+([a-z0-9-]+)\b",
             ]
         else:
             patterns = [

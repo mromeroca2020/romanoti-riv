@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 from src.engine.verification_engine import VerificationEngine
 from src.engine.closure_generator import ClosureGenerator
@@ -9,6 +9,21 @@ import os
 
 app = Flask(__name__)
 CORS(app)
+
+WEB_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(__file__)),
+    "web"
+)
+
+
+@app.route("/")
+def home():
+    return send_from_directory(WEB_DIR, "index.html")
+
+
+@app.route("/<path:filename>")
+def static_files(filename):
+    return send_from_directory(WEB_DIR, filename)
 
 
 @app.route("/run-demo", methods=["POST"])
