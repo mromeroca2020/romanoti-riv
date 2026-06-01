@@ -1,397 +1,286 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <!-- ======================================================
-       RIV OPERATIONS CENTER
-       Main visual landing page for Romanoti RIV demo.
-       This page introduces the future visual structure of RIV:
-       DCIM, topology, power, Smart Hands and reports.
-       ====================================================== -->
+  <!-- =======================================================
+       Romanoti RIV - Operations Center
+       File: src/web/index.html
 
+       Purpose:
+       Main protected RIV workspace after login.
+
+       This page introduces:
+       - Company / Data Center selection
+       - Realistic rack operational view
+       - RU numbers inside the rack
+       - Device selection
+       - Port map with status colors
+       - Right-side detail panel
+       - Legacy ticket tools preserved below
+       ======================================================= -->
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
   <title>Romanoti RIV Operations Center</title>
 
-  <!-- Main stylesheet for the RIV web interface -->
+  <!-- Main RIV stylesheet -->
   <link rel="stylesheet" href="styles.css" />
 </head>
 
 <body>
-  <!-- ======================================================
-       MAIN APPLICATION SHELL
-       The screen is divided into a left sidebar and a main
-       operations workspace.
-       ====================================================== -->
+  <!-- =======================================================
+       TOP APPLICATION SHELL
+       ======================================================= -->
   <div class="riv-shell">
 
-    <!-- ======================================================
+    <!-- =====================================================
          LEFT SIDEBAR
-         Contains branding, navigation and active demo site.
-         ====================================================== -->
+         Purpose:
+         Keeps RIV looking like a real internal application.
+         ===================================================== -->
     <aside class="riv-sidebar">
 
-      <!-- Romanoti / RIV brand block -->
-      <div class="riv-brand">
-        <div class="riv-logo">R</div>
-
+      <div class="brand-block">
+        <div class="brand-icon">R</div>
         <div>
-          <h1>RIV</h1>
-          <p>Romanoti Operations Center</p>
+          <div class="brand-title">Romanoti RIV</div>
+          <div class="brand-subtitle">Infrastructure Visualizer</div>
         </div>
       </div>
 
-      <!-- Main navigation for the visual demo sections -->
-      <nav class="riv-nav">
-        <a class="active" href="#overview">Overview</a>
-        <a href="#infrastructure">Infrastructure</a>
-        <a href="#connectivity">Connectivity</a>
-        <a href="#power">Power</a>
-        <a href="#smarthands">Smart Hands</a>
-        <a href="#reports">Reports</a>
-        <a href="#legacy-tools">Current Tools</a>
+      <nav class="sidebar-nav">
+        <a href="#dashboard" class="nav-item">Dashboard</a>
+        <a href="#infrastructure" class="nav-item active">Infrastructure</a>
+        <a href="#rack-view" class="nav-item">Rack View</a>
+        <a href="#port-map" class="nav-item">Port Map</a>
+        <a href="#connections" class="nav-item">Connections</a>
+        <a href="#smart-hands" class="nav-item">Smart Hands</a>
+        <a href="#legacy-tools" class="nav-item">Current Tools</a>
       </nav>
 
-      <!-- Current demo site indicator -->
-      <div class="riv-site-card">
-        <span class="status-dot"></span>
-
+      <div class="sidebar-status">
+        <div class="status-dot"></div>
         <div>
-          <strong>DemoDC-01</strong>
-          <small>Operational model active</small>
+          <strong id="sidebarSiteName">No site selected</strong>
+          <span>Protected pilot environment</span>
         </div>
       </div>
+
+      <div class="pilot-card">
+        <strong>RIV Pilot v1.1</strong>
+        <span>Romanoti Internal Use Only</span>
+      </div>
+
     </aside>
 
-    <!-- ======================================================
-         MAIN WORKSPACE
-         Contains the new visual RIV Operations Center.
-         ====================================================== -->
+    <!-- =====================================================
+         MAIN CONTENT
+         ===================================================== -->
     <main class="riv-main">
 
-      <!-- ======================================================
-           HERO / WELCOME SECTION
-           First visible area of the new RIV experience.
-           ====================================================== -->
-      <section class="riv-hero" id="overview">
+      <!-- ===================================================
+           TOPBAR
+           =================================================== -->
+      <header class="riv-topbar">
         <div>
-          <p class="eyebrow">Romanoti Infrastructure Visualizer</p>
+          <p class="top-eyebrow">Romanoti Infrastructure Visualizer</p>
+          <h1>Operations Center</h1>
+        </div>
 
-          <h2>RIV Operations Center</h2>
+        <div class="top-actions">
+          <div class="user-pill">
+            <span class="user-avatar">MR</span>
+            <div>
+              <strong>Romanoti Admin</strong>
+              <span>Authorized session</span>
+            </div>
+          </div>
 
-          <p class="hero-text">
-            Configurable DCIM, topology modeling, Smart Hands guidance
-            and operational reporting.
+          <a class="logout-link" href="/logout">Logout</a>
+        </div>
+      </header>
+
+      <!-- ===================================================
+           COMPANY / DATA CENTER SELECTOR
+           Purpose:
+           This is the first operational layer after login.
+           Later it can be connected to a real database.
+           =================================================== -->
+      <section class="selection-panel" id="dashboard">
+
+        <div class="section-heading">
+          <p class="panel-label">Workspace Selection</p>
+          <h2>Select company and data center</h2>
+          <p>
+            RIV loads the infrastructure model according to the selected company,
+            data center, and rack. This prepares the interface for multi-client
+            and multi-site operations.
           </p>
         </div>
 
-        <!-- Placeholder action buttons for future functionality -->
-        <div class="hero-actions">
-          <button type="button">Generate Report</button>
-          <button type="button" class="primary">Create Smart Hands Task</button>
+        <div class="selection-grid">
+
+          <label class="field-group">
+            <span>Company</span>
+            <select id="companySelect">
+              <option value="">Select company</option>
+            </select>
+          </label>
+
+          <label class="field-group">
+            <span>Data Center</span>
+            <select id="datacenterSelect" disabled>
+              <option value="">Select data center</option>
+            </select>
+          </label>
+
+          <label class="field-group">
+            <span>Rack</span>
+            <select id="rackSelect" disabled>
+              <option value="">Select rack</option>
+            </select>
+          </label>
+
+          <button type="button" id="loadRackBtn" class="primary-btn">
+            Load Rack View
+          </button>
+
         </div>
       </section>
 
-      <!-- ======================================================
-           SITE METRICS
-           High-level summary cards for the demo site.
-           ====================================================== -->
-      <section class="riv-metrics">
-        <article>
-          <span>Site</span>
-          <strong>DemoDC-01</strong>
-          <small>Structured patching model</small>
-        </article>
+      <!-- ===================================================
+           RACK OPERATIONS AREA
+           Purpose:
+           Realistic visual workbench: rack, RU numbers,
+           device labels, ports and right-side details.
+           =================================================== -->
+      <section class="operations-grid" id="infrastructure">
 
-        <article>
-          <span>Devices</span>
-          <strong>8</strong>
-          <small>Network, compute, storage</small>
-        </article>
+        <!-- Left information card -->
+        <aside class="info-card">
+          <p class="panel-label">Rack Information</p>
+          <h3 id="rackTitle">Rack not loaded</h3>
 
-        <article>
-          <span>Available Ports</span>
-          <strong>36</strong>
-          <small>SFP28 / QSFP28 ready</small>
-        </article>
-
-        <article>
-          <span>Power</span>
-          <strong>A/B</strong>
-          <small>Redundant feeds healthy</small>
-        </article>
-      </section>
-
-      <!-- ======================================================
-           MAIN VISUAL GRID
-           Left side: topology path.
-           Right side: selected device details.
-           ====================================================== -->
-      <section class="riv-grid">
-
-        <!-- ====================================================
-             TOPOLOGY PANEL
-             Demonstrates how RIV can model a structured path:
-             device -> OH -> MDF -> backbone -> MDF -> OH -> device.
-             ==================================================== -->
-        <article class="riv-panel topology-panel" id="connectivity">
-          <div class="panel-title">
+          <div class="metric-list">
             <div>
-              <p class="eyebrow">Topology</p>
-              <h3>Structured Patching Path</h3>
+              <span>Company</span>
+              <strong id="companyMetric">-</strong>
             </div>
-
-            <span class="badge success">Validated</span>
-          </div>
-
-          <!-- Visual path using fictitious/anonymized demo names -->
-          <div class="topology-flow">
-
-            <!-- Source device -->
-            <button type="button" class="topology-node device-node">
-              <strong>EdgeSwitch-01</strong>
-              <span>Rack R01 · RU24</span>
-            </button>
-
-            <div class="topology-link"></div>
-
-            <!-- Source overhead panel -->
-            <button type="button" class="topology-node oh-node">
-              <strong>OH-Panel-A</strong>
-              <span>Port 12</span>
-            </button>
-
-            <div class="topology-link"></div>
-
-            <!-- Source MDF -->
-            <button type="button" class="topology-node mdf-node">
-              <strong>MDF-Core-A</strong>
-              <span>Backbone side A</span>
-            </button>
-
-            <!-- Backbone cable / trunk segment -->
-            <div class="backbone-pill">Backbone-01 · LC-LC MM · 15m</div>
-
-            <!-- Target MDF -->
-            <button type="button" class="topology-node mdf-node">
-              <strong>MDF-Core-B</strong>
-              <span>Backbone side B</span>
-            </button>
-
-            <div class="topology-link"></div>
-
-            <!-- Target overhead panel -->
-            <button type="button" class="topology-node oh-node">
-              <strong>OH-Panel-B</strong>
-              <span>Port 07</span>
-            </button>
-
-            <div class="topology-link"></div>
-
-            <!-- Target device -->
-            <button type="button" class="topology-node device-node">
-              <strong>AppServer-01</strong>
-              <span>Rack R02 · RU18</span>
-            </button>
-          </div>
-        </article>
-
-        <!-- ====================================================
-             DEVICE DETAILS PANEL
-             Shows the type of information RIV should display
-             when the user clicks or double-clicks a device.
-             ==================================================== -->
-        <article class="riv-panel details-panel" id="infrastructure">
-          <div class="panel-title">
             <div>
-              <p class="eyebrow">Selected Device</p>
-              <h3>EdgeSwitch-01</h3>
+              <span>Data Center</span>
+              <strong id="datacenterMetric">-</strong>
             </div>
-
-            <span class="badge success">Online</span>
-          </div>
-
-          <div class="detail-list">
             <div>
-              <span>Location</span>
-              <strong>DemoDC-01 · Rack R01 · RU24</strong>
+              <span>Rack Height</span>
+              <strong id="heightMetric">42U</strong>
             </div>
-
             <div>
-              <span>Device Type</span>
-              <strong>Network Switch · 48x25G + 6x100G</strong>
+              <span>Utilization</span>
+              <strong id="utilizationMetric">0U / 42U</strong>
             </div>
-
             <div>
-              <span>Ports</span>
-              <strong>48 total · 12 used · 36 available</strong>
-            </div>
-
-            <div>
-              <span>Optics</span>
-              <strong>8 SFP28-SR · 2 QSFP28-SR4</strong>
-            </div>
-
-            <div>
-              <span>Power</span>
-              <strong>PSU-A → PDU-A / PSU-B → PDU-B</strong>
+              <span>Power Status</span>
+              <strong class="green">Normal</strong>
             </div>
           </div>
-        </article>
-      </section>
+        </aside>
 
-      <!-- ======================================================
-           LOWER OPERATIONS GRID
-           Port intelligence, power redundancy and Smart Hands.
-           ====================================================== -->
-      <section class="riv-bottom-grid">
+        <!-- Center rack view -->
+        <section class="rack-workbench" id="rack-view">
 
-        <!-- ====================================================
-             PORT INTELLIGENCE
-             Future interactive area for free ports, optics,
-             labels, source/destination and compatibility.
-             ==================================================== -->
-        <article class="riv-panel">
-          <div class="panel-title">
+          <div class="rack-toolbar">
             <div>
-              <p class="eyebrow">Port Intelligence</p>
-              <h3>Available Ports & Optics</h3>
+              <p class="panel-label">Physical Rack View</p>
+              <h2 id="rackViewTitle">Select a company and data center</h2>
+            </div>
+
+            <div class="zoom-controls">
+              <span>Zoom</span>
+              <button type="button" class="icon-btn" id="zoomOutBtn">−</button>
+              <strong id="zoomLabel">100%</strong>
+              <button type="button" class="icon-btn" id="zoomInBtn">+</button>
+              <button type="button" class="secondary-btn" id="fitRackBtn">Fit Rack</button>
             </div>
           </div>
 
-          <div class="port-list">
-            <button type="button">
-              <span>Eth1/7</span>
-              <strong>Available</strong>
-              <small>SFP28-SR · 25G · MM Fiber</small>
-            </button>
-
-            <button type="button">
-              <span>Eth1/8</span>
-              <strong>Available</strong>
-              <small>SFP28-SR · 25G · MM Fiber</small>
-            </button>
-
-            <button type="button">
-              <span>Eth1/49</span>
-              <strong>Connected</strong>
-              <small>QSFP28-SR4 · 100G · CoreSwitch-01</small>
-            </button>
-          </div>
-        </article>
-
-        <!-- ====================================================
-             POWER / PDU REDUNDANCY
-             Shows the initial direction for the DCIM power model.
-             ==================================================== -->
-        <article class="riv-panel" id="power">
-          <div class="panel-title">
-            <div>
-              <p class="eyebrow">Power</p>
-              <h3>PDU Redundancy</h3>
+          <div class="rack-scroll-area">
+            <div id="rackCanvas" class="rack-canvas" aria-label="Interactive rack canvas">
+              <div class="empty-rack-message">
+                Select company, data center and rack to load the operational rack view.
+              </div>
             </div>
           </div>
 
-          <div class="power-cards">
-            <div>
-              <span>PDU-A</span>
-              <strong>Feed A</strong>
-              <small>12 outlets used · 42% load</small>
-            </div>
-
-            <div>
-              <span>PDU-B</span>
-              <strong>Feed B</strong>
-              <small>11 outlets used · 39% load</small>
-            </div>
-          </div>
-        </article>
-
-        <!-- ====================================================
-             SMART HANDS PREVIEW
-             Demonstrates how RIV converts topology knowledge
-             into field-ready technical steps.
-             ==================================================== -->
-        <article class="riv-panel" id="smarthands">
-          <div class="panel-title">
-            <div>
-              <p class="eyebrow">Smart Hands</p>
-              <h3>Task Preview</h3>
-            </div>
-          </div>
-
-          <ol class="task-list">
-            <li>Go to rack R01 and locate EdgeSwitch-01 at RU24.</li>
-            <li>Verify SFP28-SR installed on Eth1/7.</li>
-            <li>Patch to OH-Panel-A Port 12 using LC-LC MM fiber.</li>
-            <li>Validate path to AppServer-01 and capture evidence.</li>
-          </ol>
-        </article>
-      </section>
-
-      <!-- ======================================================
-           REPORTS SUMMARY
-           Preview of the reporting direction for RIV.
-           ====================================================== -->
-      <section class="riv-panel" id="reports">
-        <div class="panel-title">
-          <div>
-            <p class="eyebrow">Reports</p>
-            <h3>Operational Summary</h3>
-          </div>
-        </div>
-
-        <div class="report-grid">
-          <div>
-            <strong>Connection Report</strong>
-            <p>1 validated circuit with full source-to-target path.</p>
-          </div>
-
-          <div>
-            <strong>Port Utilization</strong>
-            <p>36 available ports detected across demo network devices.</p>
-          </div>
-
-          <div>
-            <strong>Power Report</strong>
-            <p>Redundant A/B power available for critical devices.</p>
-          </div>
-
-          <div>
-            <strong>Smart Hands Report</strong>
-            <p>4-step guided task ready for field execution.</p>
-          </div>
-        </div>
-      </section>
-
-      <!-- ======================================================
-           EXISTING RIV TOOLS
-           Preserved current functionality.
-           These existing modules remain available while the new
-           Operations Center experience is developed above them.
-           ====================================================== -->
-      <section class="legacy-section" id="legacy-tools">
-        <div class="panel-title">
-          <div>
-            <p class="eyebrow">Current Tools</p>
-            <h3>Existing RIV Modules</h3>
-          </div>
-        </div>
-
-        <!-- Existing Bulk Patch Assistant -->
-        <section class="card">
-          <h2>Bulk Patch Assistant</h2>
-
-          <input type="file" id="excelFile" accept=".xlsx" />
-          <br /><br />
-
-          <button type="button" id="uploadExcelBtn">Upload Excel</button>
-
-          <pre id="bulkOutput">No Excel processed yet.</pre>
         </section>
 
-        <!-- Existing Service Request Builder -->
-        <section class="card">
+        <!-- Right detail panel -->
+        <aside class="detail-panel">
+          <div class="detail-header">
+            <div>
+              <p class="panel-label" id="detailType">Selected Object</p>
+              <h2 id="detailTitle">Nothing selected</h2>
+            </div>
+            <span class="state-pill" id="detailState">Idle</span>
+          </div>
+
+          <div id="detailBody" class="detail-body">
+            <p class="muted">
+              Click a device or an individual port inside the rack to see operational details.
+            </p>
+          </div>
+        </aside>
+
+      </section>
+
+      <!-- ===================================================
+           PORT INTELLIGENCE SUMMARY
+           Purpose:
+           Secondary view that helps the technician understand
+           selected port status and connection context.
+           =================================================== -->
+      <section class="summary-grid" id="port-map">
+
+        <article class="summary-card">
+          <p class="panel-label">Port Intelligence</p>
+          <h3>Selected Port</h3>
+          <div id="selectedPortSummary" class="summary-text">
+            No port selected yet.
+          </div>
+        </article>
+
+        <article class="summary-card" id="connections">
+          <p class="panel-label">Connection Path</p>
+          <h3>Route / Label</h3>
+          <div id="connectionSummary" class="summary-text">
+            Select a device or port to display source-to-destination route.
+          </div>
+        </article>
+
+        <article class="summary-card" id="smart-hands">
+          <p class="panel-label">Smart Hands</p>
+          <h3>Task Preparation</h3>
+          <div id="smartHandsSummary" class="summary-text">
+            RIV will suggest cable, length, optic and validation steps based on selection.
+          </div>
+        </article>
+
+      </section>
+
+      <!-- ===================================================
+           LEGACY TOOLS
+           Purpose:
+           Keeps the existing ticket/demo workflow available.
+           =================================================== -->
+      <section class="legacy-tools" id="legacy-tools">
+        <div class="section-heading">
+          <p class="panel-label">Current Tools</p>
+          <h2>Existing RIV Modules</h2>
+          <p>
+            These tools are preserved from the current pilot while the new
+            rack visualization layer evolves.
+          </p>
+        </div>
+
+        <div class="legacy-card">
           <h2>Service Request Builder</h2>
 
           <label for="serviceType"><strong>Service Type</strong></label>
@@ -407,54 +296,44 @@
             <option value="server_task">Server Task</option>
           </select>
 
-          <br /><br />
-
           <label for="ticketNumber"><strong>Ticket Number</strong></label>
           <input type="text" id="ticketNumber" value="SCTASK13197644" />
-
-          <br /><br />
 
           <div id="dynamicFields"></div>
 
           <label for="generatedDescription"><strong>Generated Ticket Description</strong></label>
           <textarea id="generatedDescription" rows="6" readonly>No ticket description generated yet.</textarea>
 
-          <br /><br />
-
           <button type="button" id="analyzeBtn">Analyze Ticket</button>
-        </section>
+        </div>
 
-        <!-- Existing Parsed Ticket Output -->
-        <section class="card">
+        <div class="legacy-card">
           <h2>Parsed Ticket</h2>
           <pre id="parsedOutput">No ticket analyzed yet.</pre>
-        </section>
+        </div>
 
-        <!-- Existing Verification Report Output -->
-        <section class="card">
+        <div class="legacy-card">
           <h2>Verification Report</h2>
           <pre id="reportOutput">No report generated yet.</pre>
-        </section>
+        </div>
 
-        <!-- Existing Runbook Output -->
-        <section class="card">
+        <div class="legacy-card">
           <h2>Generated Runbook</h2>
           <ol id="runbookOutput">
             <li>No runbook generated yet.</li>
           </ol>
-        </section>
+        </div>
 
-        <!-- Existing Closure Output -->
-        <section class="card">
+        <div class="legacy-card">
           <h2>Suggested Ticket Closure</h2>
           <textarea id="closureOutput" rows="6" readonly>No closure generated yet.</textarea>
           <button type="button" id="copyClosureBtn">Copy Closure Text</button>
-        </section>
+        </div>
       </section>
+
     </main>
   </div>
 
-  <!-- Existing JavaScript remains connected for current RIV tools -->
   <script src="app.js"></script>
 </body>
 </html>
