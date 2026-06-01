@@ -1,73 +1,337 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <!-- =======================================================
+       Romanoti RIV - Operations Center
+       File: src/web/index.html
+
+       Purpose:
+       Main protected RIV workspace after login.
+
+       This page introduces:
+       - Company / Data Center selection
+       - Realistic rack operational view
+       - RU numbers inside the rack
+       - Device selection
+       - Port map with status colors
+       - Right-side detail panel
+       - Legacy ticket tools preserved below
+       ======================================================= -->
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Romanoti RIV Demo</title>
+
+  <title>Romanoti RIV Operations Center</title>
+
+  <!-- Main RIV stylesheet -->
   <link rel="stylesheet" href="styles.css" />
 </head>
+
 <body>
-  <div class="container">
-    <header>
-      <h1>Romanoti Infrastructure Visualizer (RIV)</h1>
-      <p>Operational verification and closure demo</p>
-    </header>
+  <!-- =======================================================
+       TOP APPLICATION SHELL
+       ======================================================= -->
+  <div class="riv-shell">
 
-    <section class="card">
-      <h2>Service Request Builder</h2>
+    <!-- =====================================================
+         LEFT SIDEBAR
+         Purpose:
+         Keeps RIV looking like a real internal application.
+         ===================================================== -->
+    <aside class="riv-sidebar">
 
-      <label for="serviceType"><strong>Service Type</strong></label>
-      <select id="serviceType">
-        <option value="">-- Select service type --</option>
-        <option value="patch_same_rack">Patch - Same Rack</option>
-        <option value="patch_cross_rack">Patch - Cross Rack</option>
-        <option value="patch_ohu">Patch - To Overhead Unit</option>
-        <option value="power_cycle">Power Cycle</option>
-        <option value="port_validation">Port Validation - Single Device</option>
-        <option value="redundant_connectivity">Redundant Connectivity / A-B</option>
-        <option value="network_device_task">Network Device Task</option>
-        <option value="server_task">Server Task</option>
-      </select>
+      <div class="brand-block">
+        <div class="brand-icon">R</div>
+        <div>
+          <div class="brand-title">Romanoti RIV</div>
+          <div class="brand-subtitle">Infrastructure Visualizer</div>
+        </div>
+      </div>
 
-      <br /><br />
+      <nav class="sidebar-nav">
+        <a href="#dashboard" class="nav-item">Dashboard</a>
+        <a href="#infrastructure" class="nav-item active">Infrastructure</a>
+        <a href="#rack-view" class="nav-item">Rack View</a>
+        <a href="#port-map" class="nav-item">Port Map</a>
+        <a href="#connections" class="nav-item">Connections</a>
+        <a href="#smart-hands" class="nav-item">Smart Hands</a>
+        <a href="#legacy-tools" class="nav-item">Current Tools</a>
+      </nav>
 
-      <label for="ticketNumber"><strong>Ticket Number</strong></label>
-      <input type="text" id="ticketNumber" value="SCTASK13197644" />
+      <div class="sidebar-status">
+        <div class="status-dot"></div>
+        <div>
+          <strong id="sidebarSiteName">No site selected</strong>
+          <span>Protected pilot environment</span>
+        </div>
+      </div>
 
-      <br /><br />
+      <div class="pilot-card">
+        <strong>RIV Pilot v1.1</strong>
+        <span>Romanoti Internal Use Only</span>
+      </div>
 
-      <div id="dynamicFields"></div>
+    </aside>
 
-      <label for="generatedDescription"><strong>Generated Ticket Description</strong></label>
-      <textarea id="generatedDescription" rows="6" readonly>No ticket description generated yet.</textarea>
+    <!-- =====================================================
+         MAIN CONTENT
+         ===================================================== -->
+    <main class="riv-main">
 
-      <br /><br />
- 
-      <button id="analyzeBtn">Analyze Ticket</button>
-    </section>
+      <!-- ===================================================
+           TOPBAR
+           =================================================== -->
+      <header class="riv-topbar">
+        <div>
+          <p class="top-eyebrow">Romanoti Infrastructure Visualizer</p>
+          <h1>Operations Center</h1>
+        </div>
 
-    <section class="card">
-      <h2>Parsed Ticket</h2>
-      <pre id="parsedOutput">No ticket analyzed yet.</pre>
-    </section>
+        <div class="top-actions">
+          <div class="user-pill">
+            <span class="user-avatar">MR</span>
+            <div>
+              <strong>Romanoti Admin</strong>
+              <span>Authorized session</span>
+            </div>
+          </div>
 
-    <section class="card">
-      <h2>Verification Report</h2>
-      <pre id="reportOutput">No report generated yet.</pre>
-    </section>
+          <a class="logout-link" href="/logout">Logout</a>
+        </div>
+      </header>
 
-    <section class="card">
-      <h2>Generated Runbook</h2>
-      <ol id="runbookOutput">
-        <li>No runbook generated yet.</li>
-      </ol>
-    </section>
+      <!-- ===================================================
+           COMPANY / DATA CENTER SELECTOR
+           Purpose:
+           This is the first operational layer after login.
+           Later it can be connected to a real database.
+           =================================================== -->
+      <section class="selection-panel" id="dashboard">
 
-    <section class="card">
-      <h2>Suggested Ticket Closure</h2>
-      <textarea id="closureOutput" rows="6" readonly>No closure generated yet.</textarea>
-      <button id="copyClosureBtn">Copy Closure Text</button>
-    </section>
+        <div class="section-heading">
+          <p class="panel-label">Workspace Selection</p>
+          <h2>Select company and data center</h2>
+          <p>
+            RIV loads the infrastructure model according to the selected company,
+            data center, and rack. This prepares the interface for multi-client
+            and multi-site operations.
+          </p>
+        </div>
+
+        <div class="selection-grid">
+
+          <label class="field-group">
+            <span>Company</span>
+            <select id="companySelect">
+              <option value="">Select company</option>
+            </select>
+          </label>
+
+          <label class="field-group">
+            <span>Data Center</span>
+            <select id="datacenterSelect" disabled>
+              <option value="">Select data center</option>
+            </select>
+          </label>
+
+          <label class="field-group">
+            <span>Rack</span>
+            <select id="rackSelect" disabled>
+              <option value="">Select rack</option>
+            </select>
+          </label>
+
+          <button type="button" id="loadRackBtn" class="primary-btn">
+            Load Rack View
+          </button>
+
+        </div>
+      </section>
+
+      <!-- ===================================================
+           RACK OPERATIONS AREA
+           Purpose:
+           Realistic visual workbench: rack, RU numbers,
+           device labels, ports and right-side details.
+           =================================================== -->
+      <section class="operations-grid" id="infrastructure">
+
+        <!-- Left information card -->
+        <aside class="info-card">
+          <p class="panel-label">Rack Information</p>
+          <h3 id="rackTitle">Rack not loaded</h3>
+
+          <div class="metric-list">
+            <div>
+              <span>Company</span>
+              <strong id="companyMetric">-</strong>
+            </div>
+            <div>
+              <span>Data Center</span>
+              <strong id="datacenterMetric">-</strong>
+            </div>
+            <div>
+              <span>Rack Height</span>
+              <strong id="heightMetric">42U</strong>
+            </div>
+            <div>
+              <span>Utilization</span>
+              <strong id="utilizationMetric">0U / 42U</strong>
+            </div>
+            <div>
+              <span>Power Status</span>
+              <strong class="green">Normal</strong>
+            </div>
+          </div>
+        </aside>
+
+        <!-- Center rack view -->
+        <section class="rack-workbench" id="rack-view">
+
+          <div class="rack-toolbar">
+            <div>
+              <p class="panel-label">Physical Rack View</p>
+              <h2 id="rackViewTitle">Select a company and data center</h2>
+            </div>
+
+            <div class="zoom-controls">
+              <span>Zoom</span>
+              <button type="button" class="icon-btn" id="zoomOutBtn">−</button>
+              <strong id="zoomLabel">100%</strong>
+              <button type="button" class="icon-btn" id="zoomInBtn">+</button>
+              <button type="button" class="secondary-btn" id="fitRackBtn">Fit Rack</button>
+            </div>
+          </div>
+
+          <div class="rack-scroll-area">
+            <div id="rackCanvas" class="rack-canvas" aria-label="Interactive rack canvas">
+              <div class="empty-rack-message">
+                Select company, data center and rack to load the operational rack view.
+              </div>
+            </div>
+          </div>
+
+        </section>
+
+        <!-- Right detail panel -->
+        <aside class="detail-panel">
+          <div class="detail-header">
+            <div>
+              <p class="panel-label" id="detailType">Selected Object</p>
+              <h2 id="detailTitle">Nothing selected</h2>
+            </div>
+            <span class="state-pill" id="detailState">Idle</span>
+          </div>
+
+          <div id="detailBody" class="detail-body">
+            <p class="muted">
+              Click a device or an individual port inside the rack to see operational details.
+            </p>
+          </div>
+        </aside>
+
+      </section>
+
+      <!-- ===================================================
+           PORT INTELLIGENCE SUMMARY
+           Purpose:
+           Secondary view that helps the technician understand
+           selected port status and connection context.
+           =================================================== -->
+      <section class="summary-grid" id="port-map">
+
+        <article class="summary-card">
+          <p class="panel-label">Port Intelligence</p>
+          <h3>Selected Port</h3>
+          <div id="selectedPortSummary" class="summary-text">
+            No port selected yet.
+          </div>
+        </article>
+
+        <article class="summary-card" id="connections">
+          <p class="panel-label">Connection Path</p>
+          <h3>Route / Label</h3>
+          <div id="connectionSummary" class="summary-text">
+            Select a device or port to display source-to-destination route.
+          </div>
+        </article>
+
+        <article class="summary-card" id="smart-hands">
+          <p class="panel-label">Smart Hands</p>
+          <h3>Task Preparation</h3>
+          <div id="smartHandsSummary" class="summary-text">
+            RIV will suggest cable, length, optic and validation steps based on selection.
+          </div>
+        </article>
+
+      </section>
+
+      <!-- ===================================================
+           LEGACY TOOLS
+           Purpose:
+           Keeps the existing ticket/demo workflow available.
+           =================================================== -->
+      <section class="legacy-tools" id="legacy-tools">
+        <div class="section-heading">
+          <p class="panel-label">Current Tools</p>
+          <h2>Existing RIV Modules</h2>
+          <p>
+            These tools are preserved from the current pilot while the new
+            rack visualization layer evolves.
+          </p>
+        </div>
+
+        <div class="legacy-card">
+          <h2>Service Request Builder</h2>
+
+          <label for="serviceType"><strong>Service Type</strong></label>
+          <select id="serviceType">
+            <option value="">-- Select service type --</option>
+            <option value="patch_same_rack">Patch - Same Rack</option>
+            <option value="patch_cross_rack">Patch - Cross Rack</option>
+            <option value="patch_ohu">Patch - To Overhead Unit</option>
+            <option value="power_cycle">Power Cycle</option>
+            <option value="port_validation">Port Validation - Single Device</option>
+            <option value="redundant_connectivity">Redundant Connectivity / A-B</option>
+            <option value="network_device_task">Network Device Task</option>
+            <option value="server_task">Server Task</option>
+          </select>
+
+          <label for="ticketNumber"><strong>Ticket Number</strong></label>
+          <input type="text" id="ticketNumber" value="SCTASK13197644" />
+
+          <div id="dynamicFields"></div>
+
+          <label for="generatedDescription"><strong>Generated Ticket Description</strong></label>
+          <textarea id="generatedDescription" rows="6" readonly>No ticket description generated yet.</textarea>
+
+          <button type="button" id="analyzeBtn">Analyze Ticket</button>
+        </div>
+
+        <div class="legacy-card">
+          <h2>Parsed Ticket</h2>
+          <pre id="parsedOutput">No ticket analyzed yet.</pre>
+        </div>
+
+        <div class="legacy-card">
+          <h2>Verification Report</h2>
+          <pre id="reportOutput">No report generated yet.</pre>
+        </div>
+
+        <div class="legacy-card">
+          <h2>Generated Runbook</h2>
+          <ol id="runbookOutput">
+            <li>No runbook generated yet.</li>
+          </ol>
+        </div>
+
+        <div class="legacy-card">
+          <h2>Suggested Ticket Closure</h2>
+          <textarea id="closureOutput" rows="6" readonly>No closure generated yet.</textarea>
+          <button type="button" id="copyClosureBtn">Copy Closure Text</button>
+        </div>
+      </section>
+
+    </main>
   </div>
 
   <script src="app.js"></script>
