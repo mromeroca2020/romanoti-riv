@@ -3,24 +3,34 @@ Romanoti Infrastructure Visualizer (RIV)
 Protected Flask backend for the RIV Operations Center.
 
 Purpose:
-- Provide a simple Romanoti-branded login page.
+- Provide a Romanoti-branded login page.
 - Protect the RIV Operations Center behind username/password authentication.
 - Protect API endpoints such as /run-demo.
 - Serve the existing frontend files from src/web after successful login.
+- Provide enterprise-style session behavior:
+  - Logout
+  - Session timeout
+  - Authenticated session metadata
+  - No-cache headers for protected pages
 
 Environment variables expected in Render:
 - RIV_USERNAME
 - RIV_PASSWORD
 - RIV_SECRET_KEY
+
+Optional:
+- RIV_SESSION_TIMEOUT_MINUTES
 """
 
 import os
+from datetime import timedelta
 from functools import wraps
 from pathlib import Path
 
 from flask import (
     Flask,
     jsonify,
+    make_response,
     redirect,
     request,
     send_from_directory,
@@ -46,7 +56,12 @@ app = Flask(__name__)
 # In Render this must come from RIV_SECRET_KEY.
 app.secret_key = os.getenv("RIV_SECRET_KEY", "romanoti-riv-local-dev-secret")
 
-# Session hardening.
+# Session timeout in minutes.
+# Render can override this with RIV_SESSION_TIMEOUT_MINUTES.
+SESSION_TIMEOUT_MINUTES = int(os.getenv("RIV_SESSION_TIMEOUT_MINUTES", "60"))
+app.permanent_session_lifetime = timedelta(minutes=SESSION_TIMEOUT_MINUTES)
+
+# Session cookie hardening.
 # SESSION_COOKIE_SECURE is enabled automatically in Render/production.
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
@@ -64,6 +79,12 @@ CORS(app, supports_credentials=True)
 # Credentials are stored securely in Render Environment Variables.
 RIV_USERNAME = os.getenv("RIV_USERNAME", "")
 RIV_PASSWORD = os.getenv("RIV_PASSWORD", "")
+
+# User profile shown to the frontend.
+# Later this can come from CRM/Supabase/SSO.
+RIV_DISPLAY_NAME = os.getenv("RIV_DISPLAY_NAME", "Mauricio Romero")
+RIV_DISPLAY_ROLE = os.getenv("RIV_DISPLAY_ROLE", "Romanoti Admin")
+RIV_COMPANY = os.getenv("RIV_COMPANY", "RomanoTI-Solutions Inc.")
 
 # Absolute path to the existing frontend folder.
 BASE_DIR = Path(__file__).resolve().parents[2]
@@ -96,9 +117,33 @@ def login_required(route_function):
             # Browser navigation is redirected to the login screen.
             return redirect(url_for("login_page"))
 
+        # Refresh session lifetime on each authenticated request.
+        session.permanent = True
+        session.modified = True
+
         return route_function(*args, **kwargs)
 
     return wrapper
+
+
+@app.after_request
+def add_security_headers(response):
+    """
+    Add basic security and no-cache headers.
+
+    No-cache is important so browser back button does not show protected
+    dashboard content after logout.
+    """
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+
+    if request.path in ["/dashboard", "/styles.css", "/app.js"] or request.path.startswith("/api/"):
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+
+    return response
 
 
 # ============================================================
@@ -116,12 +161,21 @@ def login_page():
         return redirect(url_for("dashboard"))
 
     login_error = request.args.get("error") == "1"
+    expired = request.args.get("expired") == "1"
 
     error_html = ""
     if login_error:
         error_html = """
           <div class="login-error">
             Invalid username or password. Please try again.
+          </div>
+        """
+
+    expired_html = ""
+    if expired:
+        expired_html = """
+          <div class="login-warning">
+            Your RIV session expired. Please sign in again.
           </div>
         """
 
@@ -321,6 +375,16 @@ def login_page():
       font-size: 14px;
     }}
 
+    .login-warning {{
+      margin: 18px 0 4px;
+      padding: 12px 14px;
+      border-radius: 12px;
+      background: #fef3c7;
+      color: #92400e;
+      font-weight: 700;
+      font-size: 14px;
+    }}
+
     .authorized-note {{
       margin-top: 22px;
       color: #64748b;
@@ -379,6 +443,7 @@ def login_page():
       </div>
 
       {error_html}
+      {expired_html}
 
       <form method="POST" action="/login">
         <label for="username">Email</label>
@@ -409,7 +474,7 @@ def login_page():
       </a>
 
       <p class="authorized-note">
-        Authorized Romanoti personnel only.
+        Authorized Romanoti personnel only. Session timeout: {SESSION_TIMEOUT_MINUTES} minutes.
       </p>
     </section>
   </main>
@@ -427,8 +492,13 @@ def login():
     password = request.form.get("password", "")
 
     if username == RIV_USERNAME and password == RIV_PASSWORD:
+        session.clear()
+        session.permanent = True
         session["riv_authenticated"] = True
         session["riv_username"] = username
+        session["riv_display_name"] = RIV_DISPLAY_NAME
+        session["riv_display_role"] = RIV_DISPLAY_ROLE
+        session["riv_company"] = RIV_COMPANY
         return redirect(url_for("dashboard"))
 
     return redirect(url_for("login_page", error="1"))
@@ -440,7 +510,11 @@ def logout():
     Clear session and send the user back to the login page.
     """
     session.clear()
-    return redirect(url_for("login_page"))
+    response = make_response(redirect(url_for("login_page")))
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
 
 
 # ============================================================
@@ -472,6 +546,25 @@ def app_js():
     Serve the RIV frontend JavaScript only for authenticated users.
     """
     return send_from_directory(WEB_DIR, "app.js")
+
+
+@app.route("/api/session", methods=["GET"])
+@login_required
+def session_info():
+    """
+    Return authenticated session metadata for the frontend.
+
+    This lets app.js show the real authenticated user, role and
+    timeout value without hardcoding it in the frontend.
+    """
+    return jsonify({
+        "authenticated": True,
+        "username": session.get("riv_username"),
+        "display_name": session.get("riv_display_name", RIV_DISPLAY_NAME),
+        "display_role": session.get("riv_display_role", RIV_DISPLAY_ROLE),
+        "company": session.get("riv_company", RIV_COMPANY),
+        "timeout_minutes": SESSION_TIMEOUT_MINUTES
+    })
 
 
 @app.route("/favicon.ico", methods=["GET"])
