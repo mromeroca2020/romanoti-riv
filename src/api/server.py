@@ -1,16 +1,501 @@
-from flask import Flask, jsonify, request
+"""
+Romanoti Infrastructure Visualizer (RIV)
+Protected Flask backend for the RIV Operations Center.
+
+Purpose:
+- Provide a simple Romanoti-branded login page.
+- Protect the RIV Operations Center behind username/password authentication.
+- Protect API endpoints such as /run-demo.
+- Serve the existing frontend files from src/web after successful login.
+
+Environment variables expected in Render:
+- RIV_USERNAME
+- RIV_PASSWORD
+- RIV_SECRET_KEY
+"""
+
+import os
+from functools import wraps
+from pathlib import Path
+
+from flask import (
+    Flask,
+    jsonify,
+    redirect,
+    request,
+    send_from_directory,
+    session,
+    url_for,
+)
+
 from flask_cors import CORS
+
 from src.engine.verification_engine import VerificationEngine
 from src.engine.closure_generator import ClosureGenerator
 from src.engine.runbook_generator import RunbookGenerator
 from src.engine.ticket_parser import TicketParser
 
-app = Flask(__name__)
-CORS(app)
 
+# ============================================================
+# APPLICATION SETUP
+# ============================================================
+
+app = Flask(__name__)
+
+# Secret key used by Flask to sign session cookies.
+# In Render this must come from RIV_SECRET_KEY.
+app.secret_key = os.getenv("RIV_SECRET_KEY", "romanoti-riv-local-dev-secret")
+
+# Session hardening.
+# SESSION_COOKIE_SECURE is enabled automatically in Render/production.
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+app.config["SESSION_COOKIE_SECURE"] = bool(os.getenv("RENDER"))
+
+# CORS is kept because the original RIV pilot used it.
+# supports_credentials allows authenticated browser requests to keep session cookies.
+CORS(app, supports_credentials=True)
+
+
+# ============================================================
+# RIV CONFIGURATION
+# ============================================================
+
+# Credentials are stored securely in Render Environment Variables.
+RIV_USERNAME = os.getenv("RIV_USERNAME", "")
+RIV_PASSWORD = os.getenv("RIV_PASSWORD", "")
+
+# Absolute path to the existing frontend folder.
+BASE_DIR = Path(__file__).resolve().parents[2]
+WEB_DIR = BASE_DIR / "src" / "web"
+
+
+# ============================================================
+# AUTHENTICATION HELPERS
+# ============================================================
+
+def is_authenticated():
+    """
+    Returns True when the current browser session has passed login.
+    """
+    return session.get("riv_authenticated") is True
+
+
+def login_required(route_function):
+    """
+    Decorator used to protect RIV pages and API endpoints.
+    """
+
+    @wraps(route_function)
+    def wrapper(*args, **kwargs):
+        if not is_authenticated():
+            # API calls receive JSON so frontend code can handle the error clearly.
+            if request.path.startswith("/run-demo") or request.path.startswith("/api/"):
+                return jsonify({"error": "Authentication required"}), 401
+
+            # Browser navigation is redirected to the login screen.
+            return redirect(url_for("login_page"))
+
+        return route_function(*args, **kwargs)
+
+    return wrapper
+
+
+# ============================================================
+# LOGIN PAGE
+# ============================================================
+
+@app.route("/", methods=["GET"])
+def login_page():
+    """
+    Romanoti-branded login page for RIV.
+
+    If the user is already authenticated, send them directly to the dashboard.
+    """
+    if is_authenticated():
+        return redirect(url_for("dashboard"))
+
+    login_error = request.args.get("error") == "1"
+
+    error_html = ""
+    if login_error:
+        error_html = """
+          <div class="login-error">
+            Invalid username or password. Please try again.
+          </div>
+        """
+
+    return f"""
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>Romanoti RIV Login</title>
+
+  <style>
+    * {{
+      box-sizing: border-box;
+    }}
+
+    body {{
+      margin: 0;
+      min-height: 100vh;
+      font-family: Arial, Helvetica, sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(37, 99, 235, 0.28), transparent 32%),
+        linear-gradient(135deg, #071225 0%, #10233f 52%, #0b1220 100%);
+      color: #0f172a;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 32px;
+    }}
+
+    .login-shell {{
+      width: min(980px, 100%);
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      background: #ffffff;
+      border-radius: 28px;
+      overflow: hidden;
+      box-shadow: 0 30px 90px rgba(0, 0, 0, 0.35);
+    }}
+
+    .login-brand {{
+      position: relative;
+      padding: 56px 48px;
+      color: #ffffff;
+      background:
+        linear-gradient(rgba(15, 23, 42, 0.70), rgba(15, 23, 42, 0.82)),
+        radial-gradient(circle at top left, rgba(239, 68, 68, 0.46), transparent 30%),
+        linear-gradient(145deg, #111827, #1e3a5f);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      min-height: 560px;
+    }}
+
+    .romanoti-mark {{
+      width: 58px;
+      height: 58px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, #ef4444, #b91c1c);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      font-weight: 800;
+      margin-bottom: 30px;
+      box-shadow: 0 18px 40px rgba(239, 68, 68, 0.34);
+    }}
+
+    .access-pill {{
+      display: inline-flex;
+      width: fit-content;
+      padding: 8px 14px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.20);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      margin-bottom: 22px;
+    }}
+
+    .login-brand h1 {{
+      font-size: clamp(38px, 5vw, 58px);
+      line-height: 1.02;
+      margin: 0 0 20px;
+      letter-spacing: -0.04em;
+    }}
+
+    .login-brand p {{
+      margin: 0;
+      font-size: 17px;
+      line-height: 1.7;
+      color: rgba(255, 255, 255, 0.82);
+      max-width: 420px;
+    }}
+
+    .login-form-panel {{
+      padding: 56px 48px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }}
+
+    .form-title-row {{
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 8px;
+    }}
+
+    .accent-bar {{
+      width: 14px;
+      height: 42px;
+      border-radius: 999px;
+      background: linear-gradient(180deg, #2563eb, #ef4444);
+    }}
+
+    .login-form-panel h2 {{
+      margin: 0;
+      font-size: 32px;
+      line-height: 1.1;
+      color: #0f172a;
+      letter-spacing: -0.03em;
+    }}
+
+    .subtitle {{
+      margin: 0 0 32px;
+      color: #64748b;
+      font-size: 15px;
+    }}
+
+    label {{
+      display: block;
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: #64748b;
+      margin: 18px 0 8px;
+    }}
+
+    input {{
+      width: 100%;
+      border: 1px solid #cbd5e1;
+      border-radius: 14px;
+      padding: 15px 16px;
+      font-size: 15px;
+      outline: none;
+      background: #f8fafc;
+    }}
+
+    input:focus {{
+      border-color: #2563eb;
+      box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.14);
+      background: #ffffff;
+    }}
+
+    .login-button {{
+      width: 100%;
+      margin-top: 28px;
+      border: none;
+      border-radius: 14px;
+      padding: 16px 18px;
+      background: #0f172a;
+      color: #ffffff;
+      font-size: 15px;
+      font-weight: 800;
+      cursor: pointer;
+    }}
+
+    .login-button:hover {{
+      background: #1e293b;
+    }}
+
+    .back-link {{
+      display: block;
+      text-align: center;
+      margin-top: 14px;
+      border: 1px solid #cbd5e1;
+      border-radius: 14px;
+      padding: 14px 18px;
+      text-decoration: none;
+      color: #0f172a;
+      font-weight: 800;
+      background: #ffffff;
+    }}
+
+    .login-error {{
+      margin: 18px 0 4px;
+      padding: 12px 14px;
+      border-radius: 12px;
+      background: #fee2e2;
+      color: #991b1b;
+      font-weight: 700;
+      font-size: 14px;
+    }}
+
+    .authorized-note {{
+      margin-top: 22px;
+      color: #64748b;
+      font-size: 13px;
+    }}
+
+    @media (max-width: 820px) {{
+      body {{
+        padding: 18px;
+      }}
+
+      .login-shell {{
+        grid-template-columns: 1fr;
+      }}
+
+      .login-brand {{
+        min-height: auto;
+        padding: 42px 30px;
+      }}
+
+      .login-form-panel {{
+        padding: 42px 30px;
+      }}
+    }}
+  </style>
+</head>
+
+<body>
+  <main class="login-shell">
+
+    <!-- Left Romanoti branding panel -->
+    <section class="login-brand">
+      <div class="romanoti-mark">R</div>
+
+      <div class="access-pill">
+        Romanoti Internal Access
+      </div>
+
+      <h1>Secure sign-in for RIV.</h1>
+
+      <p>
+        Access the Romanoti Infrastructure Visualizer using authorized
+        Romanoti credentials.
+      </p>
+    </section>
+
+    <!-- Right login form panel -->
+    <section class="login-form-panel">
+      <div class="form-title-row">
+        <div class="accent-bar"></div>
+
+        <div>
+          <h2>Romanoti RIV</h2>
+          <p class="subtitle">Infrastructure Visualizer sign-in</p>
+        </div>
+      </div>
+
+      {error_html}
+
+      <form method="POST" action="/login">
+        <label for="username">Email</label>
+        <input
+          id="username"
+          name="username"
+          type="email"
+          autocomplete="username"
+          required
+        />
+
+        <label for="password">Password</label>
+        <input
+          id="password"
+          name="password"
+          type="password"
+          autocomplete="current-password"
+          required
+        />
+
+        <button class="login-button" type="submit">
+          Sign in to RIV
+        </button>
+      </form>
+
+      <a class="back-link" href="https://romanoti-solutions.com/platform/riv.html">
+        ← Back to Romanoti
+      </a>
+
+      <p class="authorized-note">
+        Authorized Romanoti personnel only.
+      </p>
+    </section>
+  </main>
+</body>
+</html>
+"""
+
+
+@app.route("/login", methods=["POST"])
+def login():
+    """
+    Validate credentials submitted from the login form.
+    """
+    username = request.form.get("username", "").strip()
+    password = request.form.get("password", "")
+
+    if username == RIV_USERNAME and password == RIV_PASSWORD:
+        session["riv_authenticated"] = True
+        session["riv_username"] = username
+        return redirect(url_for("dashboard"))
+
+    return redirect(url_for("login_page", error="1"))
+
+
+@app.route("/logout", methods=["GET"])
+def logout():
+    """
+    Clear session and send the user back to the login page.
+    """
+    session.clear()
+    return redirect(url_for("login_page"))
+
+
+# ============================================================
+# PROTECTED FRONTEND ROUTES
+# ============================================================
+
+@app.route("/dashboard", methods=["GET"])
+@login_required
+def dashboard():
+    """
+    Serve the existing RIV Operations Center after authentication.
+    """
+    return send_from_directory(WEB_DIR, "index.html")
+
+
+@app.route("/styles.css", methods=["GET"])
+@login_required
+def styles():
+    """
+    Serve the RIV frontend stylesheet only for authenticated users.
+    """
+    return send_from_directory(WEB_DIR, "styles.css")
+
+
+@app.route("/app.js", methods=["GET"])
+@login_required
+def app_js():
+    """
+    Serve the RIV frontend JavaScript only for authenticated users.
+    """
+    return send_from_directory(WEB_DIR, "app.js")
+
+
+@app.route("/favicon.ico", methods=["GET"])
+def favicon():
+    """
+    Optional favicon route.
+    If the file does not exist in src/web, Flask will return 404.
+    """
+    return send_from_directory(WEB_DIR, "favicon.ico")
+
+
+# ============================================================
+# PROTECTED API ROUTES
+# ============================================================
 
 @app.route("/run-demo", methods=["POST"])
+@login_required
 def run_demo():
+    """
+    Run the existing RIV demo verification workflow.
+
+    This endpoint is now protected, so unauthenticated users cannot call
+    the RIV API directly.
+    """
     data = request.get_json() or {}
 
     ticket_number = data.get("ticket_number", "")
@@ -187,6 +672,10 @@ def run_demo():
         "closure": closure_text
     })
 
+
+# ============================================================
+# LOCAL DEVELOPMENT ENTRYPOINT
+# ============================================================
 
 if __name__ == "__main__":
     app.run(debug=True)
