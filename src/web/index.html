@@ -2,28 +2,263 @@
 <html lang="en">
 <head>
   <!-- =======================================================
-       Romanoti RIV - Operations Center
+       Romanoti RIV - Operations Hub
        File: src/web/index.html
 
        Purpose:
        Main protected RIV workspace after login.
 
-       This page introduces:
-       - Company / Data Center selection
-       - Realistic rack operational view
-       - RU numbers inside the rack
-       - Device selection
-       - Port map with status colors
-       - Right-side detail panel
-       - Legacy ticket tools preserved below
+       Product direction:
+       - Keep the main dashboard clean and pleasant.
+       - Avoid overloading the user with every module at once.
+       - Segment RIV into focused operational views.
+       - Preserve current app.js DOM IDs so existing functionality
+         continues working while we evolve the interface.
+
+       Current modular views:
+       - Operations Hub
+       - Rack View
+       - Multi-Rack View
+       - Connectivity Map
+       - Connection Details
+       - Smart Hands Workflow
+       - Current Tools
+
+       Important:
+       - This file does NOT change authentication.
+       - This file does NOT require backend changes.
+       - This file keeps existing IDs used by app.js.
        ======================================================= -->
+
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <title>Romanoti RIV Operations Center</title>
+  <title>Romanoti RIV Operations Hub</title>
 
   <!-- Main RIV stylesheet -->
   <link rel="stylesheet" href="styles.css" />
+
+  <!-- =======================================================
+       Temporary modular-layout styles
+
+       These styles are kept here for this phase so we do not
+       open a third file yet.
+
+       Later:
+       - Move this block into src/web/styles.css
+       - Group it under "Romanoti Modular Operations Layout"
+       ======================================================= -->
+  <style>
+    html {
+      scroll-behavior: smooth;
+    }
+
+    .module-view {
+      scroll-margin-top: 24px;
+      margin-top: 24px;
+    }
+
+    .module-hero {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 24px;
+      padding: 26px;
+      border-radius: 26px;
+      background:
+        radial-gradient(circle at top left, rgba(201, 178, 126, 0.12), transparent 34%),
+        rgba(255, 255, 255, 0.045);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      margin-bottom: 20px;
+    }
+
+    .module-hero h2 {
+      margin: 0 0 8px;
+    }
+
+    .module-hero p {
+      margin: 0;
+      max-width: 780px;
+      line-height: 1.6;
+      color: rgba(255, 255, 255, 0.70);
+    }
+
+    .module-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: flex-end;
+      align-items: center;
+      min-width: 230px;
+    }
+
+    .module-actions a,
+    .module-actions button {
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .hub-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+      margin-top: 22px;
+    }
+
+    .hub-card {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 210px;
+      padding: 20px;
+      border-radius: 22px;
+      background:
+        linear-gradient(145deg, rgba(255,255,255,0.07), rgba(255,255,255,0.035));
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      text-decoration: none;
+      color: inherit;
+      transition:
+        transform 0.18s ease,
+        border-color 0.18s ease,
+        background 0.18s ease;
+    }
+
+    .hub-card:hover {
+      transform: translateY(-2px);
+      border-color: rgba(201, 178, 126, 0.45);
+      background:
+        linear-gradient(145deg, rgba(255,255,255,0.095), rgba(255,255,255,0.05));
+    }
+
+    .hub-card span {
+      display: inline-flex;
+      width: fit-content;
+      padding: 7px 10px;
+      border-radius: 999px;
+      background: rgba(201, 178, 126, 0.14);
+      color: #f3dfad;
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 14px;
+    }
+
+    .hub-card h3 {
+      margin: 0 0 8px;
+      color: #ffffff;
+    }
+
+    .hub-card p {
+      margin: 0;
+      line-height: 1.55;
+      color: rgba(255, 255, 255, 0.68);
+    }
+
+    .hub-card strong {
+      margin-top: 18px;
+      color: #ffffff;
+    }
+
+    .ops-summary-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 18px;
+    }
+
+    .ops-summary-card {
+      padding: 17px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.055);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .ops-summary-card span {
+      display: block;
+      color: rgba(255, 255, 255, 0.62);
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 7px;
+    }
+
+    .ops-summary-card strong {
+      display: block;
+      color: #ffffff;
+      font-size: 20px;
+    }
+
+    .module-placeholder {
+      padding: 28px;
+      border-radius: 24px;
+      background:
+        radial-gradient(circle at top right, rgba(125, 211, 252, 0.08), transparent 30%),
+        rgba(255, 255, 255, 0.04);
+      border: 1px dashed rgba(255, 255, 255, 0.16);
+      color: rgba(255, 255, 255, 0.72);
+      line-height: 1.6;
+    }
+
+    .module-placeholder strong {
+      color: #ffffff;
+    }
+
+    .connection-detail-view-grid {
+      display: grid;
+      grid-template-columns: 0.85fr 1.15fr;
+      gap: 18px;
+    }
+
+    .connection-focus-card {
+      padding: 20px;
+      border-radius: 22px;
+      background: rgba(255, 255, 255, 0.055);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .connection-focus-card h3 {
+      margin-top: 0;
+    }
+
+    .module-footer-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    @media (max-width: 1100px) {
+      .hub-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .ops-summary-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .connection-detail-view-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 700px) {
+      .module-hero {
+        flex-direction: column;
+      }
+
+      .module-actions {
+        justify-content: flex-start;
+        min-width: 0;
+      }
+
+      .hub-grid,
+      .ops-summary-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
 </head>
 
 <body>
@@ -36,6 +271,7 @@
          LEFT SIDEBAR
          Purpose:
          Keeps RIV looking like a real internal application.
+         Navigation now points to focused module views.
          ===================================================== -->
     <aside class="riv-sidebar">
 
@@ -48,13 +284,12 @@
       </div>
 
       <nav class="sidebar-nav">
-        <a href="#dashboard" class="nav-item">Dashboard</a>
-        <a href="#infrastructure" class="nav-item active">Infrastructure</a>
-        <a href="#rack-view" class="nav-item">Rack View</a>
-        <a href="#port-map" class="nav-item">Port Map</a>
+        <a href="#dashboard" class="nav-item active">Operations Hub</a>
+        <a href="#infrastructure" class="nav-item">Rack View</a>
+        <a href="#multi-rack-view" class="nav-item">Multi-Rack View</a>
         <a href="#connectivity-map" class="nav-item">Connectivity Map</a>
-        <a href="#connections" class="nav-item">Connections</a>
-        <a href="#smart-hands" class="nav-item">Smart Hands</a>
+        <a href="#connection-details-view" class="nav-item">Connection Details</a>
+        <a href="#smart-hands-view" class="nav-item">Smart Hands</a>
         <a href="#legacy-tools" class="nav-item">Current Tools</a>
       </nav>
 
@@ -67,8 +302,8 @@
       </div>
 
       <div class="pilot-card">
-        <strong>RIV Pilot v1.1</strong>
-        <span>Romanoti Internal Use Only</span>
+        <strong>RIV Pilot v1.2</strong>
+        <span>Modular Operations Hub</span>
       </div>
 
     </aside>
@@ -84,7 +319,7 @@
       <header class="riv-topbar">
         <div>
           <p class="top-eyebrow">Romanoti Infrastructure Visualizer</p>
-          <h1>Operations Center</h1>
+          <h1>Operations Hub</h1>
         </div>
 
         <div class="top-actions">
@@ -101,20 +336,20 @@
       </header>
 
       <!-- ===================================================
-           COMPANY / DATA CENTER SELECTOR
+           DASHBOARD / OPERATIONS HUB
            Purpose:
-           This is the first operational layer after login.
-           Later it can be connected to a real database.
+           Clean entry point. The user selects the workspace
+           and launches one focused module at a time.
            =================================================== -->
-      <section class="selection-panel" id="dashboard">
+      <section class="selection-panel module-view" id="dashboard">
 
         <div class="section-heading">
           <p class="panel-label">Workspace Selection</p>
-          <h2>Select company and data center</h2>
+          <h2>Select company, data center and rack</h2>
           <p>
             RIV loads the infrastructure model according to the selected company,
-            data center, and rack. This prepares the interface for multi-client
-            and multi-site operations.
+            data center and rack. From here, open a focused operational module
+            without overloading the dashboard.
           </p>
         </div>
 
@@ -146,188 +381,460 @@
           </button>
 
         </div>
+
+        <div class="ops-summary-grid">
+          <article class="ops-summary-card">
+            <span>Workspace</span>
+            <strong id="hubWorkspaceMetric">Select site</strong>
+          </article>
+
+          <article class="ops-summary-card">
+            <span>Rack Status</span>
+            <strong id="hubRackStatusMetric">Not loaded</strong>
+          </article>
+
+          <article class="ops-summary-card">
+            <span>Connectivity</span>
+            <strong>2 Demo Paths</strong>
+          </article>
+
+          <article class="ops-summary-card">
+            <span>Mode</span>
+            <strong>Protected Pilot</strong>
+          </article>
+        </div>
+
+        <!-- =================================================
+             MODULE LAUNCHER
+             Purpose:
+             Each module is treated like a focused app area.
+             Current anchors keep navigation simple for this phase.
+             The next app.js phase will turn these into true internal
+             routed views.
+             ================================================= -->
+        <div class="hub-grid">
+
+          <a href="#infrastructure" class="hub-card">
+            <div>
+              <span>Rack Operations</span>
+              <h3>Open Rack View</h3>
+              <p>
+                Inspect the selected rack, RU positions, devices, ports,
+                power context and operational device details.
+              </p>
+            </div>
+            <strong>Open module →</strong>
+          </a>
+
+          <a href="#multi-rack-view" class="hub-card">
+            <div>
+              <span>Data Center View</span>
+              <h3>Open Multi-Rack View</h3>
+              <p>
+                View multiple racks in a clean layout to compare utilization,
+                capacity, device distribution and operational status.
+              </p>
+            </div>
+            <strong>Open module →</strong>
+          </a>
+
+          <a href="#connectivity-map" class="hub-card">
+            <div>
+              <span>Path Visualization</span>
+              <h3>Open Connectivity Map</h3>
+              <p>
+                Visualize MDF, OH, backbone, rack and device paths without
+                mixing the route model with other dashboard tools.
+              </p>
+            </div>
+            <strong>Open module →</strong>
+          </a>
+
+          <a href="#connection-details-view" class="hub-card">
+            <div>
+              <span>Technical Detail</span>
+              <h3>Open Connection Details</h3>
+              <p>
+                Review selected port details, route metadata, cable type,
+                VLAN, speed, path status and validation notes.
+              </p>
+            </div>
+            <strong>Open module →</strong>
+          </a>
+
+          <a href="#smart-hands-view" class="hub-card">
+            <div>
+              <span>Field Workflow</span>
+              <h3>Open Smart Hands</h3>
+              <p>
+                Prepare technician instructions, validation steps, evidence
+                requirements and future closure workflow.
+              </p>
+            </div>
+            <strong>Open module →</strong>
+          </a>
+
+          <a href="#legacy-tools" class="hub-card">
+            <div>
+              <span>Current Tools</span>
+              <h3>Open Service Tools</h3>
+              <p>
+                Use the existing Service Request Builder, parser, verification
+                report, generated runbook and closure text tools.
+              </p>
+            </div>
+            <strong>Open module →</strong>
+          </a>
+
+        </div>
       </section>
 
       <!-- ===================================================
-           RACK OPERATIONS AREA
+           RACK VIEW MODULE
            Purpose:
-           Realistic visual workbench: rack, RU numbers,
-           device labels, ports and right-side details.
+           Focused view for physical rack inspection.
+           Existing app.js IDs are preserved.
            =================================================== -->
-      <section class="operations-grid" id="infrastructure">
+      <section class="module-view" id="infrastructure">
 
-        <!-- Left information card -->
-        <aside class="info-card">
-          <p class="panel-label">Rack Information</p>
-          <h3 id="rackTitle">Rack not loaded</h3>
-
-          <div class="metric-list">
-            <div>
-              <span>Company</span>
-              <strong id="companyMetric">-</strong>
-            </div>
-            <div>
-              <span>Data Center</span>
-              <strong id="datacenterMetric">-</strong>
-            </div>
-            <div>
-              <span>Rack Height</span>
-              <strong id="heightMetric">42U</strong>
-            </div>
-            <div>
-              <span>Utilization</span>
-              <strong id="utilizationMetric">0U / 42U</strong>
-            </div>
-            <div>
-              <span>Power Status</span>
-              <strong class="green">Normal</strong>
-            </div>
-          </div>
-        </aside>
-
-        <!-- Center rack view -->
-        <section class="rack-workbench" id="rack-view">
-
-          <div class="rack-toolbar">
-            <div>
-              <p class="panel-label">Physical Rack View</p>
-              <h2 id="rackViewTitle">Select a company and data center</h2>
-            </div>
-
-            <div class="zoom-controls">
-              <span>Zoom</span>
-              <button type="button" class="icon-btn" id="zoomOutBtn">−</button>
-              <strong id="zoomLabel">100%</strong>
-              <button type="button" class="icon-btn" id="zoomInBtn">+</button>
-              <button type="button" class="secondary-btn" id="fitRackBtn">Fit Rack</button>
-            </div>
+        <div class="module-hero">
+          <div>
+            <p class="panel-label">Rack View Module</p>
+            <h2>Physical rack operations</h2>
+            <p>
+              Inspect the selected rack, verify RU placement, select devices,
+              review port status and open related operational modules only
+              when needed.
+            </p>
           </div>
 
-          <div class="rack-scroll-area">
-            <div id="rackCanvas" class="rack-canvas" aria-label="Interactive rack canvas">
-              <div class="empty-rack-message">
-                Select company, data center and rack to load the operational rack view.
+          <div class="module-actions">
+            <a href="#dashboard" class="secondary-btn">Back to Hub</a>
+            <a href="#connectivity-map" class="secondary-btn">Open Connectivity</a>
+            <a href="#connection-details-view" class="secondary-btn">Connection Details</a>
+          </div>
+        </div>
+
+        <section class="operations-grid">
+
+          <!-- Left information card -->
+          <aside class="info-card">
+            <p class="panel-label">Rack Information</p>
+            <h3 id="rackTitle">Rack not loaded</h3>
+
+            <div class="metric-list">
+              <div>
+                <span>Company</span>
+                <strong id="companyMetric">-</strong>
+              </div>
+              <div>
+                <span>Data Center</span>
+                <strong id="datacenterMetric">-</strong>
+              </div>
+              <div>
+                <span>Rack Height</span>
+                <strong id="heightMetric">42U</strong>
+              </div>
+              <div>
+                <span>Utilization</span>
+                <strong id="utilizationMetric">0U / 42U</strong>
+              </div>
+              <div>
+                <span>Power Status</span>
+                <strong class="green">Normal</strong>
               </div>
             </div>
+          </aside>
+
+          <!-- Center rack view -->
+          <section class="rack-workbench" id="rack-view">
+
+            <div class="rack-toolbar">
+              <div>
+                <p class="panel-label">Physical Rack View</p>
+                <h2 id="rackViewTitle">Select a company and data center</h2>
+              </div>
+
+              <div class="zoom-controls">
+                <span>Zoom</span>
+                <button type="button" class="icon-btn" id="zoomOutBtn">−</button>
+                <strong id="zoomLabel">100%</strong>
+                <button type="button" class="icon-btn" id="zoomInBtn">+</button>
+                <button type="button" class="secondary-btn" id="fitRackBtn">Fit Rack</button>
+              </div>
+            </div>
+
+            <div class="rack-scroll-area">
+              <div id="rackCanvas" class="rack-canvas" aria-label="Interactive rack canvas">
+                <div class="empty-rack-message">
+                  Select company, data center and rack to load the operational rack view.
+                </div>
+              </div>
+            </div>
+
+          </section>
+
+          <!-- Right detail panel for device / port selection -->
+          <aside class="detail-panel">
+            <div class="detail-header">
+              <div>
+                <p class="panel-label" id="detailType">Selected Object</p>
+                <h2 id="detailTitle">Nothing selected</h2>
+              </div>
+              <span class="state-pill" id="detailState">Idle</span>
+            </div>
+
+            <div id="detailBody" class="detail-body">
+              <p class="muted">
+                Click a device or an individual port inside the rack to see operational details.
+              </p>
+            </div>
+
+            <div class="module-footer-actions">
+              <a href="#connection-details-view" class="secondary-btn">Review Connection</a>
+              <a href="#smart-hands-view" class="secondary-btn">Prepare Smart Hands</a>
+            </div>
+          </aside>
+
+        </section>
+      </section>
+
+      <!-- ===================================================
+           MULTI-RACK VIEW MODULE
+           Purpose:
+           New clean placeholder for the next module.
+
+           app.js will later render:
+           - Multiple rack cards
+           - Utilization per rack
+           - Device count
+           - Alerts
+           - Actions per rack
+           =================================================== -->
+      <section class="module-view" id="multi-rack-view">
+
+        <div class="module-hero">
+          <div>
+            <p class="panel-label">Multi-Rack Visualization</p>
+            <h2>Data center rack overview</h2>
+            <p>
+              A focused view for seeing multiple racks together without
+              overloading the main dashboard. This will become the visual
+              bridge between Rack View, Connectivity Map and DCIM expansion.
+            </p>
           </div>
+
+          <div class="module-actions">
+            <a href="#dashboard" class="secondary-btn">Back to Hub</a>
+            <a href="#infrastructure" class="secondary-btn">Open Rack View</a>
+            <a href="#connectivity-map" class="secondary-btn">Open Connectivity</a>
+          </div>
+        </div>
+
+        <div class="module-placeholder" id="multiRackCanvas">
+          <strong>Multi-Rack View v1 is ready for rendering.</strong><br>
+          The next app.js update will draw racks for the selected data center,
+          including utilization, health, device count, alerts and actions such as
+          Inspect Rack, View Paths and Prepare Smart Hands.
+        </div>
+
+      </section>
+
+      <!-- ===================================================
+           CONNECTIVITY MAP MODULE
+           Purpose:
+           Focused route visualization only.
+           Connection details are moved to a separate module below.
+           Existing app.js IDs are preserved.
+           =================================================== -->
+      <section class="connectivity-map-section module-view" id="connectivity-map">
+
+        <div class="module-hero">
+          <div>
+            <p class="panel-label">Connectivity Map</p>
+            <h2 id="connectivityTitle">Connection path not loaded</h2>
+            <p>
+              Visualize how a selected connection moves from rack equipment
+              through OH panels, MDF points, backbone segments and destination racks.
+            </p>
+          </div>
+
+          <div class="module-actions">
+            <a href="#dashboard" class="secondary-btn">Back to Hub</a>
+            <a href="#connection-details-view" class="secondary-btn">Open Details</a>
+            <a href="#smart-hands-view" class="secondary-btn">Prepare Smart Hands</a>
+            <button type="button" class="secondary-btn" id="fitConnectivityBtn">
+              Fit to View
+            </button>
+            <button type="button" class="secondary-btn" id="resetConnectivityBtn">
+              Reset
+            </button>
+          </div>
+        </div>
+
+        <div class="connectivity-layout">
+
+          <div class="connectivity-canvas" id="connectivityCanvas">
+            <div class="empty-rack-message">
+              Load a rack and select a connected port to display the multi-hop path.
+            </div>
+          </div>
+
+        </div>
+
+      </section>
+
+      <!-- ===================================================
+           CONNECTION DETAILS MODULE
+           Purpose:
+           Dedicated detail view for selected port/path context.
+           Existing app.js IDs are preserved:
+           - selectedPortSummary
+           - connectionSummary
+           - connectionDetailTitle
+           - connectionDetailBody
+           =================================================== -->
+      <section class="module-view" id="connection-details-view">
+
+        <div class="module-hero">
+          <div>
+            <p class="panel-label">Connection Details</p>
+            <h2>Selected connection review</h2>
+            <p>
+              Review the selected device, port, route metadata, cable details,
+              VLAN, speed, validation status and next actions in one calm,
+              focused screen.
+            </p>
+          </div>
+
+          <div class="module-actions">
+            <a href="#dashboard" class="secondary-btn">Back to Hub</a>
+            <a href="#connectivity-map" class="secondary-btn">Back to Map</a>
+            <a href="#smart-hands-view" class="secondary-btn">Create Smart Hands Task</a>
+          </div>
+        </div>
+
+        <div class="connection-detail-view-grid">
+
+          <article class="connection-focus-card">
+            <p class="panel-label">Selected Port</p>
+            <h3>Port Intelligence</h3>
+            <div id="selectedPortSummary" class="summary-text">
+              No port selected yet.
+            </div>
+
+            <hr />
+
+            <p class="panel-label">Connection Path</p>
+            <h3>Route / Label</h3>
+            <div id="connectionSummary" class="summary-text">
+              Select a device or port to display source-to-destination route.
+            </div>
+          </article>
+
+          <aside class="connection-detail-card">
+            <p class="panel-label">Technical Connection Details</p>
+            <h3 id="connectionDetailTitle">No connection selected</h3>
+
+            <div id="connectionDetailBody" class="detail-body">
+              <p class="muted">
+                Select a connected port such as CORE-SW-01 Eth14 to trace the path.
+              </p>
+            </div>
+
+            <div class="module-footer-actions">
+              <a href="#connectivity-map" class="secondary-btn">View Path Map</a>
+              <a href="#smart-hands-view" class="secondary-btn">Prepare Field Workflow</a>
+            </div>
+          </aside>
+
+        </div>
+
+      </section>
+
+      <!-- ===================================================
+           SMART HANDS MODULE
+           Purpose:
+           Dedicated operational workflow area.
+           Existing app.js ID smartHandsSummary is preserved.
+           =================================================== -->
+      <section class="module-view" id="smart-hands-view">
+
+        <div class="module-hero">
+          <div>
+            <p class="panel-label">Smart Hands Workflow</p>
+            <h2>Task preparation and field guidance</h2>
+            <p>
+              Convert selected rack, device, port and connectivity context into
+              clear technician instructions, validation steps, evidence notes
+              and future closure workflow.
+            </p>
+          </div>
+
+          <div class="module-actions">
+            <a href="#dashboard" class="secondary-btn">Back to Hub</a>
+            <a href="#connection-details-view" class="secondary-btn">Connection Details</a>
+            <a href="#legacy-tools" class="secondary-btn">Open Current Tools</a>
+          </div>
+        </div>
+
+        <section class="summary-grid">
+
+          <article class="summary-card" id="smart-hands">
+            <p class="panel-label">Smart Hands</p>
+            <h3>Task Preparation</h3>
+            <div id="smartHandsSummary" class="summary-text">
+              RIV will suggest cable, length, optic and validation steps based on selection.
+            </div>
+          </article>
+
+          <article class="summary-card">
+            <p class="panel-label">Field Steps</p>
+            <h3>Guided Checklist</h3>
+            <div class="summary-text">
+              The next Smart Hands phase will generate ordered steps for the technician:
+              locate rack, verify device, identify port, validate cable, capture evidence
+              and confirm completion.
+            </div>
+          </article>
+
+          <article class="summary-card">
+            <p class="panel-label">Evidence</p>
+            <h3>Validation Notes</h3>
+            <div class="summary-text">
+              Future workflow will support notes, photos, validation status,
+              engineer confirmation and final closure text.
+            </div>
+          </article>
 
         </section>
 
-        <!-- Right detail panel -->
-        <aside class="detail-panel">
-          <div class="detail-header">
-            <div>
-              <p class="panel-label" id="detailType">Selected Object</p>
-              <h2 id="detailTitle">Nothing selected</h2>
-            </div>
-            <span class="state-pill" id="detailState">Idle</span>
-          </div>
+      </section>
 
-          <div id="detailBody" class="detail-body">
-            <p class="muted">
-              Click a device or an individual port inside the rack to see operational details.
+      <!-- ===================================================
+           CURRENT TOOLS MODULE
+           Purpose:
+           Keeps the existing ticket/demo workflow available,
+           now as a separate module instead of cluttering the
+           main dashboard.
+           =================================================== -->
+      <section class="legacy-tools module-view" id="legacy-tools">
+
+        <div class="module-hero">
+          <div>
+            <p class="panel-label">Current Tools</p>
+            <h2>Existing RIV Modules</h2>
+            <p>
+              These tools are preserved from the current pilot while the new
+              modular visualization layer evolves.
             </p>
           </div>
-        </aside>
 
-      </section>
-<!-- ===================================================
-     CONNECTIVITY MAP
-     Purpose:
-     Multi-hop visual path between racks, overhead panels,
-     MDF points, backbone segments and destination racks.
-     =================================================== -->
-<section class="connectivity-map-section" id="connectivity-map">
-
-  <div class="connectivity-header">
-    <div>
-      <p class="panel-label">Connectivity Map</p>
-      <h2 id="connectivityTitle">Connection path not loaded</h2>
-      <p>
-        Visualize how a selected connection moves from rack equipment
-        through OH panels, MDF points, backbone segments and destination racks.
-      </p>
-    </div>
-
-    <div class="connectivity-actions">
-      <button type="button" class="secondary-btn" id="fitConnectivityBtn">
-        Fit to View
-      </button>
-      <button type="button" class="secondary-btn" id="resetConnectivityBtn">
-        Reset
-      </button>
-    </div>
-  </div>
-
-  <div class="connectivity-layout">
-
-    <div class="connectivity-canvas" id="connectivityCanvas">
-      <div class="empty-rack-message">
-        Load a rack and select a connected port to display the multi-hop path.
-      </div>
-    </div>
-
-    <aside class="connection-detail-card">
-      <p class="panel-label">Connection Details</p>
-      <h3 id="connectionDetailTitle">No connection selected</h3>
-
-      <div id="connectionDetailBody" class="detail-body">
-        <p class="muted">
-          Select a connected port such as CORE-SW-01 Eth14 to trace the path.
-        </p>
-      </div>
-    </aside>
-
-  </div>
-
-</section>
-      <!-- ===================================================
-           PORT INTELLIGENCE SUMMARY
-           Purpose:
-           Secondary view that helps the technician understand
-           selected port status and connection context.
-           =================================================== -->
-      <section class="summary-grid" id="port-map">
-
-        <article class="summary-card">
-          <p class="panel-label">Port Intelligence</p>
-          <h3>Selected Port</h3>
-          <div id="selectedPortSummary" class="summary-text">
-            No port selected yet.
+          <div class="module-actions">
+            <a href="#dashboard" class="secondary-btn">Back to Hub</a>
+            <a href="#smart-hands-view" class="secondary-btn">Smart Hands</a>
+            <a href="#connection-details-view" class="secondary-btn">Connection Details</a>
           </div>
-        </article>
-
-        <article class="summary-card" id="connections">
-          <p class="panel-label">Connection Path</p>
-          <h3>Route / Label</h3>
-          <div id="connectionSummary" class="summary-text">
-            Select a device or port to display source-to-destination route.
-          </div>
-        </article>
-
-        <article class="summary-card" id="smart-hands">
-          <p class="panel-label">Smart Hands</p>
-          <h3>Task Preparation</h3>
-          <div id="smartHandsSummary" class="summary-text">
-            RIV will suggest cable, length, optic and validation steps based on selection.
-          </div>
-        </article>
-
-      </section>
-
-      <!-- ===================================================
-           LEGACY TOOLS
-           Purpose:
-           Keeps the existing ticket/demo workflow available.
-           =================================================== -->
-      <section class="legacy-tools" id="legacy-tools">
-        <div class="section-heading">
-          <p class="panel-label">Current Tools</p>
-          <h2>Existing RIV Modules</h2>
-          <p>
-            These tools are preserved from the current pilot while the new
-            rack visualization layer evolves.
-          </p>
         </div>
 
         <div class="legacy-card">

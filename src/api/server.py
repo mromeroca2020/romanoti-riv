@@ -1,17 +1,28 @@
 """
 Romanoti Infrastructure Visualizer (RIV)
-Protected Flask backend for the RIV Operations Center.
+Protected Flask backend for Romanoti RIV.
+
+File:
+- src/api/server.py
 
 Purpose:
-- Provide a Romanoti-branded login page.
-- Protect the RIV Operations Center behind username/password authentication.
-- Protect API endpoints such as /run-demo.
-- Serve the existing frontend files from src/web after successful login.
-- Provide enterprise-style session behavior:
-  - Logout
-  - Session timeout
-  - Authenticated session metadata
-  - No-cache headers for protected pages
+- Provide the Romanoti-branded login page.
+- Protect RIV behind username/password authentication.
+- Protect RIV frontend pages and API endpoints.
+- Serve modular frontend pages from src/web.
+- Preserve the current login flow and environment-variable credentials.
+- Prepare RIV for a commercial/pilot product architecture.
+
+Product direction:
+- RIV should not grow as one overloaded HTML page.
+- Each feature should become its own protected page:
+  - dashboard.html
+  - rack-view.html
+  - multi-rack.html
+  - connectivity-map.html
+  - connection-details.html
+  - smart-hands.html
+  - tools.html
 
 Environment variables expected in Render:
 - RIV_USERNAME
@@ -20,6 +31,15 @@ Environment variables expected in Render:
 
 Optional:
 - RIV_SESSION_TIMEOUT_MINUTES
+- RIV_DISPLAY_NAME
+- RIV_DISPLAY_ROLE
+- RIV_COMPANY
+
+Important:
+- This file does NOT change credentials.
+- This file does NOT add a login bypass.
+- Local testing still requires setting RIV_USERNAME and RIV_PASSWORD
+  in PowerShell before running Flask.
 """
 
 import os
@@ -77,6 +97,7 @@ CORS(app, supports_credentials=True)
 # ============================================================
 
 # Credentials are stored securely in Render Environment Variables.
+# Do not hardcode production credentials here.
 RIV_USERNAME = os.getenv("RIV_USERNAME", "")
 RIV_PASSWORD = os.getenv("RIV_PASSWORD", "")
 
@@ -89,6 +110,67 @@ RIV_COMPANY = os.getenv("RIV_COMPANY", "RomanoTI-Solutions Inc.")
 # Absolute path to the existing frontend folder.
 BASE_DIR = Path(__file__).resolve().parents[2]
 WEB_DIR = BASE_DIR / "src" / "web"
+
+
+# ============================================================
+# MODULAR FRONTEND PAGE MAP
+# ============================================================
+
+"""
+Each protected frontend module should eventually have its own HTML file.
+
+Current migration behavior:
+- /dashboard serves dashboard.html when it exists.
+- Until dashboard.html is created, /dashboard falls back to the existing index.html.
+- Other module routes show a protected placeholder until their HTML files are created.
+
+This lets us migrate safely, one complete file at a time.
+"""
+
+MODULAR_PAGES = {
+    "dashboard": {
+        "route": "/dashboard",
+        "filename": "dashboard.html",
+        "title": "Operations Hub",
+        "fallback": "index.html",
+    },
+    "rack_view": {
+        "route": "/rack-view",
+        "filename": "rack-view.html",
+        "title": "Rack View",
+        "fallback": None,
+    },
+    "multi_rack": {
+        "route": "/multi-rack",
+        "filename": "multi-rack.html",
+        "title": "Multi-Rack Visualization",
+        "fallback": None,
+    },
+    "connectivity_map": {
+        "route": "/connectivity-map",
+        "filename": "connectivity-map.html",
+        "title": "Connectivity Map",
+        "fallback": None,
+    },
+    "connection_details": {
+        "route": "/connection-details",
+        "filename": "connection-details.html",
+        "title": "Connection Details",
+        "fallback": None,
+    },
+    "smart_hands": {
+        "route": "/smart-hands",
+        "filename": "smart-hands.html",
+        "title": "Smart Hands Workflow",
+        "fallback": None,
+    },
+    "tools": {
+        "route": "/tools",
+        "filename": "tools.html",
+        "title": "Current Tools",
+        "fallback": None,
+    },
+}
 
 
 # ============================================================
@@ -111,7 +193,7 @@ def login_required(route_function):
     def wrapper(*args, **kwargs):
         if not is_authenticated():
             # API calls receive JSON so frontend code can handle the error clearly.
-            if request.path.startswith("/run-demo") or request.path.startswith("/api/"):
+            if request.path == "/run-demo" or request.path.startswith("/api/"):
                 return jsonify({"error": "Authentication required"}), 401
 
             # Browser navigation is redirected to the login screen.
@@ -126,6 +208,28 @@ def login_required(route_function):
     return wrapper
 
 
+def is_protected_frontend_path(path):
+    """
+    Returns True when the path is part of the protected RIV frontend.
+
+    This is used for no-cache headers so the browser does not keep
+    protected app pages after logout.
+    """
+    protected_paths = {
+        "/dashboard",
+        "/rack-view",
+        "/multi-rack",
+        "/connectivity-map",
+        "/connection-details",
+        "/smart-hands",
+        "/tools",
+        "/styles.css",
+        "/app.js",
+    }
+
+    return path in protected_paths or path.startswith("/api/")
+
+
 @app.after_request
 def add_security_headers(response):
     """
@@ -138,12 +242,165 @@ def add_security_headers(response):
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
 
-    if request.path in ["/dashboard", "/styles.css", "/app.js"] or request.path.startswith("/api/"):
+    if is_protected_frontend_path(request.path):
         response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
         response.headers["Pragma"] = "no-cache"
         response.headers["Expires"] = "0"
 
     return response
+
+
+# ============================================================
+# FRONTEND SERVING HELPERS
+# ============================================================
+
+def web_file_exists(filename):
+    """
+    Checks whether a frontend file exists inside src/web.
+    """
+    return (WEB_DIR / filename).exists()
+
+
+def serve_protected_web_page(filename, title, fallback_filename=None):
+    """
+    Serves a protected modular frontend page.
+
+    Behavior:
+    - If filename exists, serve it.
+    - If fallback_filename exists, serve that instead.
+      This keeps /dashboard working during migration.
+    - If neither exists, show a protected placeholder page.
+      This avoids 404 while we create module pages one by one.
+    """
+    if web_file_exists(filename):
+        return send_from_directory(WEB_DIR, filename)
+
+    if fallback_filename and web_file_exists(fallback_filename):
+        return send_from_directory(WEB_DIR, fallback_filename)
+
+    return render_module_placeholder(title=title, expected_file=filename)
+
+
+def render_module_placeholder(title, expected_file):
+    """
+    Temporary protected placeholder for modules whose HTML file has not
+    been created yet.
+
+    This is not a bypass and not public.
+    The user must be authenticated to see it.
+    """
+    return f"""
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>Romanoti RIV - {title}</title>
+
+  <style>
+    * {{
+      box-sizing: border-box;
+    }}
+
+    body {{
+      margin: 0;
+      min-height: 100vh;
+      font-family: Arial, Helvetica, sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(201, 178, 126, 0.14), transparent 32%),
+        linear-gradient(135deg, #071225 0%, #10233f 52%, #0b1220 100%);
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 32px;
+    }}
+
+    .placeholder-shell {{
+      width: min(980px, 100%);
+      border-radius: 28px;
+      padding: 42px;
+      background: rgba(255, 255, 255, 0.07);
+      border: 1px solid rgba(255, 255, 255, 0.10);
+      box-shadow: 0 30px 90px rgba(0, 0, 0, 0.35);
+    }}
+
+    .eyebrow {{
+      color: #f3dfad;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      font-size: 12px;
+      font-weight: 900;
+      margin: 0 0 10px;
+    }}
+
+    h1 {{
+      margin: 0 0 12px;
+      font-size: clamp(36px, 6vw, 64px);
+      letter-spacing: -0.05em;
+      line-height: 1;
+    }}
+
+    p {{
+      color: rgba(255, 255, 255, 0.74);
+      font-size: 17px;
+      line-height: 1.65;
+      max-width: 760px;
+    }}
+
+    code {{
+      display: inline-flex;
+      padding: 4px 8px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.10);
+      color: #f3dfad;
+      font-weight: 800;
+    }}
+
+    .actions {{
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 26px;
+    }}
+
+    a {{
+      text-decoration: none;
+      padding: 13px 18px;
+      border-radius: 999px;
+      font-weight: 900;
+      color: #0f172a;
+      background: #f3dfad;
+    }}
+
+    a.secondary {{
+      color: #ffffff;
+      background: rgba(255, 255, 255, 0.10);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+    }}
+  </style>
+</head>
+
+<body>
+  <main class="placeholder-shell">
+    <p class="eyebrow">Romanoti RIV · Protected Module</p>
+    <h1>{title}</h1>
+
+    <p>
+      This module route is protected and ready. The frontend file
+      <code>{expected_file}</code> has not been created yet.
+      We will add it in the next implementation step.
+    </p>
+
+    <div class="actions">
+      <a href="/dashboard">Back to Operations Hub</a>
+      <a class="secondary" href="/logout">Logout</a>
+    </div>
+  </main>
+</body>
+</html>
+"""
 
 
 # ============================================================
@@ -415,7 +672,6 @@ def login_page():
 <body>
   <main class="login-shell">
 
-    <!-- Left Romanoti branding panel -->
     <section class="login-brand">
       <div class="romanoti-mark">R</div>
 
@@ -431,7 +687,6 @@ def login_page():
       </p>
     </section>
 
-    <!-- Right login form panel -->
     <section class="login-form-panel">
       <div class="form-title-row">
         <div class="accent-bar"></div>
@@ -487,6 +742,11 @@ def login_page():
 def login():
     """
     Validate credentials submitted from the login form.
+
+    Credentials are not hardcoded here.
+    They come from:
+    - RIV_USERNAME
+    - RIV_PASSWORD
     """
     username = request.form.get("username", "").strip()
     password = request.form.get("password", "")
@@ -525,9 +785,102 @@ def logout():
 @login_required
 def dashboard():
     """
-    Serve the existing RIV Operations Center after authentication.
+    Serve the RIV Operations Hub.
+
+    During migration:
+    - dashboard.html will be preferred once created.
+    - index.html is used as fallback so the current app does not break.
     """
-    return send_from_directory(WEB_DIR, "index.html")
+    page = MODULAR_PAGES["dashboard"]
+    return serve_protected_web_page(
+        filename=page["filename"],
+        title=page["title"],
+        fallback_filename=page["fallback"],
+    )
+
+
+@app.route("/rack-view", methods=["GET"])
+@login_required
+def rack_view():
+    """
+    Serve the dedicated Rack View module.
+    """
+    page = MODULAR_PAGES["rack_view"]
+    return serve_protected_web_page(
+        filename=page["filename"],
+        title=page["title"],
+        fallback_filename=page["fallback"],
+    )
+
+
+@app.route("/multi-rack", methods=["GET"])
+@login_required
+def multi_rack():
+    """
+    Serve the dedicated Multi-Rack Visualization module.
+    """
+    page = MODULAR_PAGES["multi_rack"]
+    return serve_protected_web_page(
+        filename=page["filename"],
+        title=page["title"],
+        fallback_filename=page["fallback"],
+    )
+
+
+@app.route("/connectivity-map", methods=["GET"])
+@login_required
+def connectivity_map():
+    """
+    Serve the dedicated Connectivity Map module.
+    """
+    page = MODULAR_PAGES["connectivity_map"]
+    return serve_protected_web_page(
+        filename=page["filename"],
+        title=page["title"],
+        fallback_filename=page["fallback"],
+    )
+
+
+@app.route("/connection-details", methods=["GET"])
+@login_required
+def connection_details():
+    """
+    Serve the dedicated Connection Details module.
+    """
+    page = MODULAR_PAGES["connection_details"]
+    return serve_protected_web_page(
+        filename=page["filename"],
+        title=page["title"],
+        fallback_filename=page["fallback"],
+    )
+
+
+@app.route("/smart-hands", methods=["GET"])
+@login_required
+def smart_hands():
+    """
+    Serve the dedicated Smart Hands Workflow module.
+    """
+    page = MODULAR_PAGES["smart_hands"]
+    return serve_protected_web_page(
+        filename=page["filename"],
+        title=page["title"],
+        fallback_filename=page["fallback"],
+    )
+
+
+@app.route("/tools", methods=["GET"])
+@login_required
+def tools():
+    """
+    Serve the dedicated Current Tools module.
+    """
+    page = MODULAR_PAGES["tools"]
+    return serve_protected_web_page(
+        filename=page["filename"],
+        title=page["title"],
+        fallback_filename=page["fallback"],
+    )
 
 
 @app.route("/styles.css", methods=["GET"])
@@ -563,7 +916,64 @@ def session_info():
         "display_name": session.get("riv_display_name", RIV_DISPLAY_NAME),
         "display_role": session.get("riv_display_role", RIV_DISPLAY_ROLE),
         "company": session.get("riv_company", RIV_COMPANY),
-        "timeout_minutes": SESSION_TIMEOUT_MINUTES
+        "timeout_minutes": SESSION_TIMEOUT_MINUTES,
+    })
+
+
+@app.route("/api/navigation", methods=["GET"])
+@login_required
+def navigation_info():
+    """
+    Return modular navigation metadata.
+
+    This will be useful for frontend pages that want to build the sidebar
+    dynamically later.
+    """
+    return jsonify({
+        "modules": [
+            {
+                "key": "dashboard",
+                "label": "Operations Hub",
+                "url": "/dashboard",
+                "status": "active",
+            },
+            {
+                "key": "rack_view",
+                "label": "Rack View",
+                "url": "/rack-view",
+                "status": "ready",
+            },
+            {
+                "key": "multi_rack",
+                "label": "Multi-Rack View",
+                "url": "/multi-rack",
+                "status": "planned",
+            },
+            {
+                "key": "connectivity_map",
+                "label": "Connectivity Map",
+                "url": "/connectivity-map",
+                "status": "ready",
+            },
+            {
+                "key": "connection_details",
+                "label": "Connection Details",
+                "url": "/connection-details",
+                "status": "planned",
+            },
+            {
+                "key": "smart_hands",
+                "label": "Smart Hands",
+                "url": "/smart-hands",
+                "status": "planned",
+            },
+            {
+                "key": "tools",
+                "label": "Current Tools",
+                "url": "/tools",
+                "status": "ready",
+            },
+        ]
     })
 
 
@@ -586,7 +996,7 @@ def run_demo():
     """
     Run the existing RIV demo verification workflow.
 
-    This endpoint is now protected, so unauthenticated users cannot call
+    This endpoint is protected, so unauthenticated users cannot call
     the RIV API directly.
     """
     data = request.get_json() or {}
