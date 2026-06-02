@@ -1,0 +1,1877 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- =======================================================
+       Romanoti RIV - Connection Details
+       File: src/web/connection-details.html
+
+       Purpose:
+       Dedicated protected module for detailed technical
+       validation of a selected connection before Smart Hands.
+
+       Product direction:
+       - Keep the dashboard clean.
+       - Keep Connectivity Map visual.
+       - Keep Connection Details technical and actionable.
+       - Prepare exact Smart Hands instructions:
+         source, destination, rack/RU, ports, OH, MDF, patch,
+         cable run per segment, cable type, length, labels,
+         VLAN, speed, optics/transceivers and validation checks.
+
+       Current stage:
+       - Standalone demo model.
+       - Reads context from URL/sessionStorage when available.
+       - Later this page should consume backend/API records.
+       ======================================================= -->
+
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>Romanoti RIV - Connection Details</title>
+
+  <style>
+    :root {
+      --bg: #071225;
+      --panel: rgba(255, 255, 255, 0.065);
+      --panel-strong: rgba(255, 255, 255, 0.095);
+      --border: rgba(255, 255, 255, 0.12);
+      --border-strong: rgba(255, 255, 255, 0.20);
+      --text: #ffffff;
+      --muted: rgba(255, 255, 255, 0.66);
+      --soft: rgba(255, 255, 255, 0.46);
+      --gold: #f3dfad;
+      --gold-strong: #fbbf24;
+      --blue: #38bdf8;
+      --green: #22c55e;
+      --yellow: #f59e0b;
+      --red: #ef4444;
+      --purple: #a78bfa;
+      --radius: 24px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Arial, Helvetica, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(56, 189, 248, 0.13), transparent 32%),
+        radial-gradient(circle at top right, rgba(251, 191, 36, 0.08), transparent 28%),
+        linear-gradient(135deg, #071225 0%, #0d1b31 52%, #050b14 100%);
+    }
+
+    a {
+      color: inherit;
+    }
+
+    button,
+    select {
+      font-family: inherit;
+    }
+
+    .shell {
+      display: grid;
+      grid-template-columns: 280px minmax(0, 1fr);
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      padding: 28px 20px;
+      background: rgba(5, 12, 24, 0.96);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .brand-mark {
+      width: 54px;
+      height: 54px;
+      border-radius: 16px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, #6366f1, #ef4444);
+      font-size: 28px;
+      font-weight: 900;
+      box-shadow: 0 18px 36px rgba(239, 68, 68, 0.25);
+    }
+
+    .brand-title {
+      font-size: 24px;
+      font-weight: 900;
+      letter-spacing: -0.04em;
+      line-height: 1;
+    }
+
+    .brand-subtitle {
+      margin-top: 5px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .nav {
+      display: grid;
+      gap: 8px;
+    }
+
+    .nav a {
+      text-decoration: none;
+      padding: 13px 15px;
+      border-radius: 14px;
+      color: rgba(255, 255, 255, 0.74);
+      font-size: 14px;
+      font-weight: 800;
+    }
+
+    .nav a:hover {
+      background: rgba(255, 255, 255, 0.075);
+      color: #ffffff;
+    }
+
+    .nav a.active {
+      background: rgba(56, 189, 248, 0.16);
+      border: 1px solid rgba(56, 189, 248, 0.30);
+      color: #ffffff;
+    }
+
+    .sidebar-spacer {
+      flex: 1;
+    }
+
+    .mini-card {
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.055);
+      border-radius: 18px;
+      padding: 16px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    .mini-card strong {
+      display: block;
+      color: #ffffff;
+      margin-bottom: 4px;
+    }
+
+    .status-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .status-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 999px;
+      background: var(--green);
+      box-shadow: 0 0 0 5px rgba(34, 197, 94, 0.13);
+    }
+
+    .main {
+      padding: 32px;
+      min-width: 0;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      gap: 24px;
+      align-items: flex-start;
+      margin-bottom: 24px;
+    }
+
+    .eyebrow {
+      margin: 0 0 8px;
+      color: #a9c7ff;
+      font-size: 13px;
+      font-weight: 900;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(36px, 4vw, 56px);
+      line-height: 0.96;
+      letter-spacing: -0.055em;
+    }
+
+    .lead {
+      margin: 12px 0 0;
+      max-width: 940px;
+      color: var(--muted);
+      line-height: 1.55;
+      font-size: 16px;
+    }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-shrink: 0;
+    }
+
+    .user-pill {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 11px 15px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.075);
+      border: 1px solid var(--border);
+    }
+
+    .avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 999px;
+      background: rgba(56, 189, 248, 0.20);
+      display: grid;
+      place-items: center;
+      font-weight: 900;
+    }
+
+    .user-pill strong {
+      display: block;
+      font-size: 14px;
+    }
+
+    .user-pill span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 2px;
+    }
+
+    .btn,
+    .btn-primary,
+    .btn-ghost,
+    .btn-danger {
+      min-height: 44px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      padding: 12px 17px;
+      font-weight: 900;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      white-space: nowrap;
+    }
+
+    .btn {
+      color: #ffffff;
+      background: rgba(255, 255, 255, 0.075);
+    }
+
+    .btn-primary {
+      border: none;
+      color: #071225;
+      background: linear-gradient(135deg, var(--gold), var(--gold-strong));
+    }
+
+    .btn-ghost {
+      color: var(--gold);
+      background: transparent;
+      border-color: rgba(243, 223, 173, 0.30);
+    }
+
+    .btn-danger {
+      color: #fecaca;
+      background: rgba(239, 68, 68, 0.10);
+      border-color: rgba(239, 68, 68, 0.22);
+    }
+
+    .workspace {
+      border-radius: 28px;
+      padding: 22px;
+      margin-bottom: 20px;
+      border: 1px solid var(--border);
+      background:
+        radial-gradient(circle at top right, rgba(56, 189, 248, 0.10), transparent 34%),
+        linear-gradient(145deg, rgba(255,255,255,0.085), rgba(255,255,255,0.045));
+    }
+
+    .workspace-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1.2fr auto;
+      gap: 14px;
+      align-items: end;
+    }
+
+    .field {
+      display: grid;
+      gap: 7px;
+    }
+
+    .field label {
+      color: rgba(255,255,255,0.72);
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: 0.10em;
+      text-transform: uppercase;
+    }
+
+    select {
+      width: 100%;
+      min-height: 46px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,0.14);
+      background: rgba(2, 8, 18, 0.88);
+      color: #ffffff;
+      font-weight: 800;
+      outline: none;
+    }
+
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+
+    .metric-card {
+      border-radius: 22px;
+      padding: 20px;
+      background: rgba(255, 255, 255, 0.060);
+      border: 1px solid var(--border);
+    }
+
+    .metric-card span {
+      display: block;
+      color: var(--soft);
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      margin-bottom: 9px;
+    }
+
+    .metric-card strong {
+      display: block;
+      font-size: 26px;
+      line-height: 1;
+      letter-spacing: -0.04em;
+    }
+
+    .module-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 410px;
+      gap: 18px;
+      align-items: start;
+    }
+
+    .panel {
+      border-radius: var(--radius);
+      background: linear-gradient(145deg, rgba(255,255,255,0.070), rgba(255,255,255,0.040));
+      border: 1px solid var(--border);
+      box-shadow: 0 18px 55px rgba(0,0,0,0.18);
+    }
+
+    .panel-pad {
+      padding: 22px;
+    }
+
+    .panel-title {
+      margin: 0 0 16px;
+      color: #a9c7ff;
+      font-size: 13px;
+      font-weight: 900;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+    }
+
+    .summary-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 18px;
+      margin-bottom: 18px;
+    }
+
+    .summary-header h2 {
+      margin: 0;
+      font-size: 30px;
+      letter-spacing: -0.045em;
+    }
+
+    .summary-header p {
+      margin: 8px 0 0;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 13px;
+      border-radius: 999px;
+      color: #86efac;
+      background: rgba(34,197,94,0.16);
+      border: 1px solid rgba(34,197,94,0.28);
+      font-size: 13px;
+      font-weight: 900;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .status-pill.warning {
+      color: #fde68a;
+      background: rgba(245,158,11,0.16);
+      border-color: rgba(245,158,11,0.34);
+    }
+
+    .status-pill.pending {
+      color: #bae6fd;
+      background: rgba(56,189,248,0.16);
+      border-color: rgba(56,189,248,0.34);
+    }
+
+    .endpoint-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+
+    .endpoint-card {
+      border-radius: 22px;
+      padding: 18px;
+      background: rgba(255,255,255,0.055);
+      border: 1px solid var(--border);
+    }
+
+    .endpoint-card h3 {
+      margin: 0 0 12px;
+      font-size: 22px;
+      letter-spacing: -0.04em;
+    }
+
+    .detail-row {
+      padding: 13px 0;
+      border-top: 1px solid rgba(255,255,255,0.075);
+    }
+
+    .detail-row:first-of-type {
+      border-top: none;
+    }
+
+    .detail-row span {
+      display: block;
+      color: var(--soft);
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: 0.10em;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    .detail-row strong {
+      display: block;
+      color: #ffffff;
+      font-size: 14px;
+      line-height: 1.45;
+    }
+
+    .route-chain {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(120px, 1fr));
+      gap: 10px;
+      margin-bottom: 18px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+
+    .chain-node {
+      min-width: 130px;
+      border-radius: 18px;
+      padding: 14px;
+      background: rgba(7, 18, 37, 0.72);
+      border: 1px solid rgba(255,255,255,0.12);
+    }
+
+    .chain-node.source,
+    .chain-node.destination {
+      border-color: rgba(34,197,94,0.26);
+      background:
+        radial-gradient(circle at top right, rgba(34,197,94,0.12), transparent 42%),
+        rgba(7, 18, 37, 0.72);
+    }
+
+    .chain-node.oh {
+      border-color: rgba(56,189,248,0.28);
+      background:
+        radial-gradient(circle at top right, rgba(56,189,248,0.14), transparent 42%),
+        rgba(7, 18, 37, 0.72);
+    }
+
+    .chain-node.mdf {
+      border-color: rgba(167,139,250,0.28);
+      background:
+        radial-gradient(circle at top right, rgba(167,139,250,0.16), transparent 42%),
+        rgba(7, 18, 37, 0.72);
+    }
+
+    .chain-node.warning {
+      border-color: rgba(245,158,11,0.34);
+      background:
+        radial-gradient(circle at top right, rgba(245,158,11,0.16), transparent 42%),
+        rgba(7, 18, 37, 0.72);
+    }
+
+    .chain-node span {
+      display: block;
+      color: var(--soft);
+      font-size: 10px;
+      font-weight: 900;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      margin-bottom: 7px;
+    }
+
+    .chain-node strong {
+      display: block;
+      font-size: 14px;
+      line-height: 1.2;
+      margin-bottom: 8px;
+    }
+
+    .chain-node small {
+      display: block;
+      color: var(--muted);
+      line-height: 1.35;
+    }
+
+    .section-gap {
+      margin-top: 18px;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      border-radius: 20px;
+      border: 1px solid rgba(255,255,255,0.10);
+      background: rgba(2, 8, 18, 0.30);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 1020px;
+    }
+
+    th,
+    td {
+      text-align: left;
+      padding: 13px 14px;
+      border-bottom: 1px solid rgba(255,255,255,0.075);
+      vertical-align: top;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    th {
+      color: rgba(255,255,255,0.72);
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: 0.11em;
+      text-transform: uppercase;
+      background: rgba(255,255,255,0.045);
+    }
+
+    td strong {
+      display: block;
+      color: #ffffff;
+      margin-bottom: 2px;
+    }
+
+    td small {
+      color: var(--muted);
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    .run-id {
+      display: inline-grid;
+      place-items: center;
+      width: 30px;
+      height: 30px;
+      border-radius: 999px;
+      background: rgba(243, 223, 173, 0.14);
+      color: var(--gold);
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .cable-total-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .cable-total-card {
+      padding: 15px;
+      border-radius: 18px;
+      background: rgba(243, 223, 173, 0.08);
+      border: 1px solid rgba(243, 223, 173, 0.16);
+    }
+
+    .cable-total-card span {
+      display: block;
+      color: var(--soft);
+      font-size: 10px;
+      font-weight: 900;
+      letter-spacing: 0.10em;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    .cable-total-card strong {
+      display: block;
+      color: var(--gold);
+      line-height: 1.3;
+      font-size: 15px;
+    }
+
+    .validation-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .check-card {
+      display: grid;
+      grid-template-columns: 34px minmax(0, 1fr);
+      gap: 10px;
+      padding: 13px;
+      border-radius: 16px;
+      background: rgba(255,255,255,0.055);
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .check-icon {
+      width: 30px;
+      height: 30px;
+      border-radius: 999px;
+      display: grid;
+      place-items: center;
+      background: rgba(34,197,94,0.16);
+      color: #86efac;
+      font-weight: 900;
+    }
+
+    .check-icon.warning {
+      background: rgba(245,158,11,0.16);
+      color: #fde68a;
+    }
+
+    .check-icon.pending {
+      background: rgba(56,189,248,0.16);
+      color: #bae6fd;
+    }
+
+    .check-card strong {
+      display: block;
+      font-size: 13px;
+      margin-bottom: 4px;
+    }
+
+    .check-card small {
+      color: var(--muted);
+      line-height: 1.35;
+    }
+
+    .detail-panel h2 {
+      margin: 0;
+      font-size: 28px;
+      letter-spacing: -0.04em;
+    }
+
+    .detail-subtitle {
+      color: var(--muted);
+      margin: 7px 0 0;
+      line-height: 1.45;
+    }
+
+    .right-status {
+      margin: 16px 0;
+    }
+
+    .action-stack {
+      display: grid;
+      gap: 10px;
+      margin-top: 18px;
+      padding-top: 18px;
+      border-top: 1px solid rgba(255,255,255,0.075);
+    }
+
+    .action-stack a,
+    .action-stack button {
+      width: 100%;
+    }
+
+    .notes-panel {
+      margin-top: 18px;
+      border-radius: 20px;
+      padding: 18px;
+      background: rgba(243, 223, 173, 0.08);
+      border: 1px solid rgba(243, 223, 173, 0.20);
+    }
+
+    .notes-panel strong {
+      display: block;
+      color: var(--gold);
+      margin-bottom: 8px;
+    }
+
+    .notes-panel p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.55;
+      font-size: 14px;
+    }
+
+    .compact-list {
+      display: grid;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .compact-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: center;
+      padding: 11px 12px;
+      border-radius: 14px;
+      background: rgba(255,255,255,0.055);
+      border: 1px solid rgba(255,255,255,0.08);
+      font-size: 13px;
+    }
+
+    .compact-row strong {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .compact-row span {
+      color: var(--gold);
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    .focus-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-top: 18px;
+    }
+
+    .focus-card {
+      padding: 18px;
+      border-radius: 20px;
+      background: rgba(255,255,255,0.055);
+      border: 1px solid var(--border);
+    }
+
+    .focus-card h3 {
+      margin: 0 0 8px;
+      font-size: 16px;
+    }
+
+    .focus-card p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.5;
+      font-size: 14px;
+    }
+
+    @media (max-width: 1360px) {
+      .module-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .metric-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .cable-total-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 1050px) {
+      .shell {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        position: relative;
+        height: auto;
+      }
+
+      .workspace-grid,
+      .endpoint-grid,
+      .validation-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .focus-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .main {
+        padding: 20px;
+      }
+
+      .topbar {
+        flex-direction: column;
+      }
+
+      .top-actions {
+        flex-wrap: wrap;
+      }
+
+      .metric-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="shell">
+
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">R</div>
+        <div>
+          <div class="brand-title">Romanoti RIV</div>
+          <div class="brand-subtitle">Infrastructure Visualizer</div>
+        </div>
+      </div>
+
+      <nav class="nav">
+        <a href="/dashboard">Operations Hub</a>
+        <a href="/rack-view">Rack View</a>
+        <a href="/multi-rack">Multi-Rack View</a>
+        <a href="/connectivity-map">Connectivity Map</a>
+        <a href="/connection-details" class="active">Connection Details</a>
+        <a href="/smart-hands">Smart Hands</a>
+        <a href="/current-tools">Current Tools</a>
+      </nav>
+
+      <div class="sidebar-spacer"></div>
+
+      <div class="mini-card">
+        <div class="status-row">
+          <span class="status-dot"></span>
+          <div>
+            <strong id="sideSite">DemoDC-01</strong>
+            <span>Protected pilot environment</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="mini-card">
+        <strong>RIV Pilot v1.2</strong>
+        <span>Technical connection validation before Smart Hands execution.</span>
+      </div>
+    </aside>
+
+    <main class="main">
+
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Romanoti Infrastructure Visualizer</p>
+          <h1>Connection Details</h1>
+          <p class="lead">
+            Validate the full technical detail of a selected connection:
+            source, destination, racks, RU, OH, MDF, patch points, cable runs,
+            cable type, exact length per run, VLAN, speed, optics and Smart Hands readiness.
+          </p>
+        </div>
+
+        <div class="top-actions">
+          <div class="user-pill">
+            <div class="avatar" id="userInitials">MR</div>
+            <div>
+              <strong id="displayName">Mauricio Romero</strong>
+              <span id="displayRole">Romanoti Admin</span>
+            </div>
+          </div>
+
+          <a class="btn" href="/logout">Logout</a>
+        </div>
+      </header>
+
+      <section class="workspace">
+        <p class="eyebrow">Workspace Selection</p>
+
+        <div class="workspace-grid">
+          <div class="field">
+            <label for="companySelect">Company</label>
+            <select id="companySelect"></select>
+          </div>
+
+          <div class="field">
+            <label for="datacenterSelect">Data Center</label>
+            <select id="datacenterSelect"></select>
+          </div>
+
+          <div class="field">
+            <label for="connectionSelect">Connection</label>
+            <select id="connectionSelect"></select>
+          </div>
+
+          <button class="btn-primary" id="loadConnectionBtn" type="button">
+            Load Details
+          </button>
+        </div>
+      </section>
+
+      <section class="metric-grid">
+        <article class="metric-card">
+          <span>Connection Status</span>
+          <strong id="statusMetric">Ready</strong>
+        </article>
+
+        <article class="metric-card">
+          <span>Total Runs</span>
+          <strong id="runsMetric">0</strong>
+        </article>
+
+        <article class="metric-card">
+          <span>Total Length</span>
+          <strong id="lengthMetric">0m</strong>
+        </article>
+
+        <article class="metric-card">
+          <span>Speed</span>
+          <strong id="speedMetric">N/A</strong>
+        </article>
+
+        <article class="metric-card">
+          <span>Validation</span>
+          <strong id="validationMetric">0%</strong>
+        </article>
+      </section>
+
+      <section class="module-layout">
+
+        <section>
+
+          <section class="panel panel-pad">
+            <div class="summary-header">
+              <div>
+                <p class="panel-title">Connection Technical Summary</p>
+                <h2 id="connectionTitle">Connection not loaded</h2>
+                <p id="connectionDescription">
+                  Select a connection to inspect technical details.
+                </p>
+              </div>
+
+              <span class="status-pill" id="connectionStatus">Ready</span>
+            </div>
+
+            <div class="endpoint-grid">
+              <article class="endpoint-card">
+                <p class="panel-title">Source Endpoint</p>
+                <h3 id="sourceTitle">Source</h3>
+                <div id="sourceDetails"></div>
+              </article>
+
+              <article class="endpoint-card">
+                <p class="panel-title">Destination Endpoint</p>
+                <h3 id="destinationTitle">Destination</h3>
+                <div id="destinationDetails"></div>
+              </article>
+            </div>
+
+            <p class="panel-title">Infrastructure Chain</p>
+            <div class="route-chain" id="routeChain"></div>
+          </section>
+
+          <section class="panel panel-pad section-gap">
+            <p class="panel-title">Smart Hands Cable Run Sheet</p>
+
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Run</th>
+                    <th>From</th>
+                    <th>To</th>
+                    <th>Cable Used</th>
+                    <th>Required Length</th>
+                    <th>Connector / Optic</th>
+                    <th>Label</th>
+                    <th>Technician Note</th>
+                  </tr>
+                </thead>
+                <tbody id="cableRunRows"></tbody>
+              </table>
+            </div>
+
+            <div class="cable-total-grid" id="cableTotals"></div>
+          </section>
+
+          <section class="panel panel-pad section-gap">
+            <p class="panel-title">Technical Validation Checklist</p>
+            <div class="validation-grid" id="validationGrid"></div>
+          </section>
+
+        </section>
+
+        <aside class="panel panel-pad detail-panel">
+          <p class="panel-title">Execution Readiness</p>
+
+          <h2 id="readinessTitle">No connection selected</h2>
+          <p class="detail-subtitle" id="readinessSubtitle">
+            Load a connection to prepare technical actions.
+          </p>
+
+          <div class="right-status">
+            <span class="status-pill" id="readinessStatus">Ready</span>
+          </div>
+
+          <div id="technicalDetails"></div>
+
+          <div class="action-stack">
+            <a class="btn-primary" id="openSmartHands" href="/smart-hands">
+              Prepare Smart Hands
+            </a>
+
+            <a class="btn" id="openConnectivityMap" href="/connectivity-map">
+              Back to Connectivity Map
+            </a>
+
+            <a class="btn" id="openRackView" href="/rack-view">
+              Open Source Rack
+            </a>
+
+            <a class="btn" id="openMultiRack" href="/multi-rack">
+              Open Multi-Rack View
+            </a>
+
+            <a class="btn" href="/dashboard">
+              Back to Operations Hub
+            </a>
+          </div>
+
+          <div class="notes-panel">
+            <strong>Smart Hands Note</strong>
+            <p id="smartHandsNote">
+              This module should be reviewed before dispatching a technician.
+            </p>
+          </div>
+        </aside>
+
+      </section>
+
+      <section class="focus-grid">
+        <article class="focus-card">
+          <p class="panel-title">Technician Ready</p>
+          <h3>Cable run sheet</h3>
+          <p>
+            Each cable run is separated connection-to-connection with cable type,
+            required length, connector/optic, label and technician notes.
+          </p>
+        </article>
+
+        <article class="focus-card">
+          <p class="panel-title">Validation First</p>
+          <h3>Reduce field errors</h3>
+          <p id="validationSummary">
+            Review labels, ports, VLAN, speed, transceivers and cable length before Smart Hands.
+          </p>
+        </article>
+
+        <article class="focus-card">
+          <p class="panel-title">Workflow</p>
+          <h3>Details → Smart Hands</h3>
+          <p>
+            This page acts as the technical approval step before generating guided field instructions.
+          </p>
+        </article>
+      </section>
+
+    </main>
+  </div>
+
+  <script>
+    const rivModel = {
+      companies: [
+        {
+          id: "romanoti",
+          name: "RomanoTI-Solutions Inc.",
+          datacenters: [
+            {
+              id: "demodc01",
+              name: "DemoDC-01",
+              connections: [
+                {
+                  id: "conn-core-app",
+                  name: "CORE-SW-01 Eth5 → SRV-APP-01 NIC1",
+                  status: "operational",
+                  validationScore: 96,
+                  speed: "10 Gbps",
+                  vlan: "120",
+                  protocol: "Ethernet / App Access",
+                  circuitId: "RIV-DEMO-CIR-001",
+                  ticketRef: "RIV-PILOT-1001",
+                  changeWindow: "Pilot window / no production impact",
+                  description: "Operational application server access path with verified labels, VLAN, speed and cable route.",
+                  source: {
+                    rack: "Rack R42",
+                    ru: "RU39-38",
+                    device: "CORE-SW-01",
+                    deviceType: "Core Switch",
+                    port: "Eth5",
+                    transceiver: "SFP+ SR",
+                    ip: "10.10.10.1",
+                    vlan: "120"
+                  },
+                  destination: {
+                    rack: "Rack R42",
+                    ru: "RU19-18",
+                    device: "SRV-APP-01",
+                    deviceType: "Application Server",
+                    port: "NIC1",
+                    transceiver: "SFP+ SR",
+                    ip: "10.10.40.21",
+                    vlan: "120"
+                  },
+                  chain: [
+                    { kind: "Source", title: "CORE-SW-01", meta: "Rack R42 · RU39-38 · Eth5", type: "source" },
+                    { kind: "OH", title: "OH-A12", meta: "Row A overhead · Port 05", type: "oh" },
+                    { kind: "MDF", title: "MDF-A", meta: "Panel A · Port 14", type: "mdf" },
+                    { kind: "Backbone", title: "BB-01", meta: "Fiber pair 07", type: "mdf" },
+                    { kind: "OH", title: "OH-B08", meta: "Row A overhead · Port 09", type: "oh" },
+                    { kind: "Destination", title: "SRV-APP-01", meta: "Rack R42 · RU19-18 · NIC1", type: "destination" }
+                  ],
+                  cableRuns: [
+                    {
+                      from: "CORE-SW-01 Eth5 / Rack R42 RU39",
+                      to: "OH-A12 Port 05 / Row A",
+                      cableUsed: "LC-LC MM Fiber patch",
+                      length: "3m",
+                      connector: "LC-LC / SFP+ SR",
+                      label: "R42-CORE-Eth5_to_OH-A12-05",
+                      note: "Install from source switch front panel to overhead panel. Leave controlled service loop."
+                    },
+                    {
+                      from: "OH-A12 Port 05",
+                      to: "MDF-A Panel A Port 14",
+                      cableUsed: "LC-LC MM Fiber trunk",
+                      length: "8m",
+                      connector: "LC-LC",
+                      label: "OH-A12-05_to_MDF-A-A14",
+                      note: "Follow overhead tray route. Confirm fiber polarity before patching."
+                    },
+                    {
+                      from: "MDF-A Panel A Port 14",
+                      to: "BB-01 Pair 07",
+                      cableUsed: "LC-LC MM Fiber backbone",
+                      length: "7m",
+                      connector: "LC-LC",
+                      label: "MDF-A-A14_to_BB-01-P07",
+                      note: "Backbone segment already documented. Validate panel label only."
+                    },
+                    {
+                      from: "BB-01 Pair 07",
+                      to: "OH-B08 Port 09",
+                      cableUsed: "LC-LC MM Fiber trunk",
+                      length: "4m",
+                      connector: "LC-LC",
+                      label: "BB-01-P07_to_OH-B08-09",
+                      note: "Route back to Row A overhead return."
+                    },
+                    {
+                      from: "OH-B08 Port 09",
+                      to: "SRV-APP-01 NIC1 / Rack R42 RU19",
+                      cableUsed: "LC-LC MM Fiber patch",
+                      length: "1m",
+                      connector: "LC-LC / SFP+ SR",
+                      label: "OH-B08-09_to_R42-SRVAPP-NIC1",
+                      note: "Patch to server NIC1. Confirm link LED and speed after connection."
+                    }
+                  ],
+                  checklist: [
+                    { name: "Source port verified", status: "pass", note: "CORE-SW-01 Eth5 identified." },
+                    { name: "Destination port verified", status: "pass", note: "SRV-APP-01 NIC1 identified." },
+                    { name: "VLAN aligned", status: "pass", note: "VLAN 120 matches source and destination." },
+                    { name: "Speed / optic compatible", status: "pass", note: "10 Gbps SFP+ SR at both ends." },
+                    { name: "Cable length validated", status: "pass", note: "All runs have exact required length." },
+                    { name: "Labels ready", status: "pass", note: "Cable labels generated for every run." }
+                  ],
+                  smartHandsNote: "Ready for Smart Hands. Technician should follow the cable run sheet in order and capture link LED confirmation."
+                },
+                {
+                  id: "conn-core-fw",
+                  name: "CORE-SW-01 Eth14 → FW-01 Port 3",
+                  status: "warning",
+                  validationScore: 74,
+                  speed: "1 Gbps",
+                  vlan: "WAN / Edge",
+                  protocol: "Ethernet / Firewall Handoff",
+                  circuitId: "RIV-DEMO-CIR-002",
+                  ticketRef: "RIV-PILOT-1002",
+                  changeWindow: "Requires approval before field change",
+                  description: "Firewall handoff path requiring physical label confirmation due to recent link flap.",
+                  source: {
+                    rack: "Rack R42",
+                    ru: "RU39-38",
+                    device: "CORE-SW-01",
+                    deviceType: "Core Switch",
+                    port: "Eth14",
+                    transceiver: "RJ45",
+                    ip: "10.10.10.1",
+                    vlan: "WAN / Edge"
+                  },
+                  destination: {
+                    rack: "Rack R42",
+                    ru: "RU27-26",
+                    device: "FW-01",
+                    deviceType: "Firewall",
+                    port: "Port 3",
+                    transceiver: "RJ45",
+                    ip: "10.10.30.1",
+                    vlan: "WAN / Edge"
+                  },
+                  chain: [
+                    { kind: "Source", title: "CORE-SW-01", meta: "Rack R42 · RU39-38 · Eth14", type: "source warning" },
+                    { kind: "OH", title: "OH-A12", meta: "Row A overhead · Port 14", type: "oh warning" },
+                    { kind: "MDF", title: "MDF-A", meta: "Panel A · Port 23", type: "mdf warning" },
+                    { kind: "Patch", title: "Patch-CAB-23", meta: "Copper handoff", type: "warning" },
+                    { kind: "OH", title: "OH-B03", meta: "Row A overhead · Port 03", type: "oh warning" },
+                    { kind: "Destination", title: "FW-01", meta: "Rack R42 · RU27-26 · Port 3", type: "destination warning" }
+                  ],
+                  cableRuns: [
+                    {
+                      from: "CORE-SW-01 Eth14 / Rack R42 RU39",
+                      to: "OH-A12 Port 14 / Row A",
+                      cableUsed: "Cat6A patch lead",
+                      length: "2m",
+                      connector: "RJ45",
+                      label: "R42-CORE-Eth14_to_OH-A12-14",
+                      note: "Confirm switch port label. Recent flap was reported on this path."
+                    },
+                    {
+                      from: "OH-A12 Port 14",
+                      to: "MDF-A Panel A Port 23",
+                      cableUsed: "Cat6A trunk",
+                      length: "5m",
+                      connector: "RJ45",
+                      label: "OH-A12-14_to_MDF-A-A23",
+                      note: "Verify trunk label before touching existing patch."
+                    },
+                    {
+                      from: "MDF-A Panel A Port 23",
+                      to: "Patch-CAB-23",
+                      cableUsed: "Cat6A patch lead",
+                      length: "2m",
+                      connector: "RJ45",
+                      label: "MDF-A-A23_to_PATCH-CAB-23",
+                      note: "This is the segment most likely requiring review."
+                    },
+                    {
+                      from: "Patch-CAB-23",
+                      to: "OH-B03 Port 03",
+                      cableUsed: "Cat6A trunk",
+                      length: "3m",
+                      connector: "RJ45",
+                      label: "PATCH-CAB-23_to_OH-B03-03",
+                      note: "Confirm route continuity after MDF patch review."
+                    },
+                    {
+                      from: "OH-B03 Port 03",
+                      to: "FW-01 Port 3 / Rack R42 RU27",
+                      cableUsed: "Cat6A patch lead",
+                      length: "2m",
+                      connector: "RJ45",
+                      label: "OH-B03-03_to_R42-FW01-P3",
+                      note: "Patch into firewall Port 3. Confirm link LED and firewall interface status."
+                    }
+                  ],
+                  checklist: [
+                    { name: "Source port verified", status: "pass", note: "CORE-SW-01 Eth14 identified." },
+                    { name: "Destination port verified", status: "warning", note: "FW-01 Port 3 must be physically confirmed." },
+                    { name: "VLAN aligned", status: "pending", note: "WAN/Edge assignment requires approval check." },
+                    { name: "Speed / connector compatible", status: "pass", note: "1 Gbps RJ45 path." },
+                    { name: "Cable length validated", status: "pass", note: "All runs have exact required length." },
+                    { name: "Labels ready", status: "warning", note: "Patch-CAB-23 label confirmation pending." }
+                  ],
+                  smartHandsNote: "Do not dispatch as normal execution until FW-01 Port 3 and Patch-CAB-23 labels are confirmed."
+                },
+                {
+                  id: "conn-storage-backup",
+                  name: "STORAGE-01 iSCSI1 → BACKUP-01 ETH3",
+                  status: "operational",
+                  validationScore: 91,
+                  speed: "10 Gbps",
+                  vlan: "150",
+                  protocol: "Ethernet / Storage Backup",
+                  circuitId: "RIV-DEMO-CIR-003",
+                  ticketRef: "RIV-PILOT-1003",
+                  changeWindow: "Pilot window / storage validation",
+                  description: "Storage-to-backup route crossing from Rack R42 to Rack R44 through OH, MDF and backbone segments.",
+                  source: {
+                    rack: "Rack R42",
+                    ru: "RU15-14",
+                    device: "STORAGE-01",
+                    deviceType: "Storage Array",
+                    port: "iSCSI1",
+                    transceiver: "SFP+ SR",
+                    ip: "10.10.50.10",
+                    vlan: "150"
+                  },
+                  destination: {
+                    rack: "Rack R44",
+                    ru: "RU34-31",
+                    device: "BACKUP-01",
+                    deviceType: "Backup Storage",
+                    port: "ETH3",
+                    transceiver: "SFP+ SR",
+                    ip: "10.10.55.10",
+                    vlan: "150"
+                  },
+                  chain: [
+                    { kind: "Source", title: "STORAGE-01", meta: "Rack R42 · RU15-14 · iSCSI1", type: "source" },
+                    { kind: "OH", title: "OH-A09", meta: "Row A overhead · Port 11", type: "oh" },
+                    { kind: "MDF", title: "MDF-A", meta: "Panel S · Port 04", type: "mdf" },
+                    { kind: "Backbone", title: "BB-STOR-02", meta: "Storage pair 12", type: "mdf" },
+                    { kind: "OH", title: "OH-C04", meta: "Row A overhead · Port 18", type: "oh" },
+                    { kind: "Destination", title: "BACKUP-01", meta: "Rack R44 · RU34-31 · ETH3", type: "destination" }
+                  ],
+                  cableRuns: [
+                    {
+                      from: "STORAGE-01 iSCSI1 / Rack R42 RU15",
+                      to: "OH-A09 Port 11",
+                      cableUsed: "LC-LC MM Fiber patch",
+                      length: "4m",
+                      connector: "LC-LC / SFP+ SR",
+                      label: "R42-STORAGE-iSCSI1_to_OH-A09-11",
+                      note: "Confirm storage port and clean fiber before insertion."
+                    },
+                    {
+                      from: "OH-A09 Port 11",
+                      to: "MDF-A Panel S Port 04",
+                      cableUsed: "LC-LC MM Fiber trunk",
+                      length: "9m",
+                      connector: "LC-LC",
+                      label: "OH-A09-11_to_MDF-A-S04",
+                      note: "Route through overhead tray to storage distribution panel."
+                    },
+                    {
+                      from: "MDF-A Panel S Port 04",
+                      to: "BB-STOR-02 Pair 12",
+                      cableUsed: "LC-LC MM Fiber backbone",
+                      length: "11m",
+                      connector: "LC-LC",
+                      label: "MDF-A-S04_to_BB-STOR-02-P12",
+                      note: "Validate pair 12 assignment before patch."
+                    },
+                    {
+                      from: "BB-STOR-02 Pair 12",
+                      to: "OH-C04 Port 18",
+                      cableUsed: "LC-LC MM Fiber trunk",
+                      length: "5m",
+                      connector: "LC-LC",
+                      label: "BB-STOR-02-P12_to_OH-C04-18",
+                      note: "Return route to backup rack overhead area."
+                    },
+                    {
+                      from: "OH-C04 Port 18",
+                      to: "BACKUP-01 ETH3 / Rack R44 RU34",
+                      cableUsed: "LC-LC MM Fiber patch",
+                      length: "2m",
+                      connector: "LC-LC / SFP+ SR",
+                      label: "OH-C04-18_to_R44-BACKUP-ETH3",
+                      note: "Confirm backup device link LED and storage VLAN reachability."
+                    }
+                  ],
+                  checklist: [
+                    { name: "Source port verified", status: "pass", note: "STORAGE-01 iSCSI1 identified." },
+                    { name: "Destination port verified", status: "pass", note: "BACKUP-01 ETH3 identified." },
+                    { name: "VLAN aligned", status: "pass", note: "Storage VLAN 150 aligned." },
+                    { name: "Speed / optic compatible", status: "pass", note: "10 Gbps SFP+ SR both ends." },
+                    { name: "Cable length validated", status: "pass", note: "All runs have exact required length." },
+                    { name: "Destination rack review", status: "warning", note: "R44 PDU-B review is unrelated but should be noted." }
+                  ],
+                  smartHandsNote: "Connectivity path is ready. Technician should also be aware that Rack R44 has a separate PDU-B review flag."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    };
+
+    const $ = (id) => document.getElementById(id);
+
+    let activeCompany = null;
+    let activeDatacenter = null;
+    let activeConnection = null;
+
+    document.addEventListener("DOMContentLoaded", () => {
+      loadSessionInfo();
+      initWorkspace();
+      attachEvents();
+      applyIncomingContext();
+      loadConnectionDetails();
+    });
+
+    function initWorkspace() {
+      $("companySelect").innerHTML = rivModel.companies
+        .map((company) => `<option value="${escapeHtml(company.id)}">${escapeHtml(company.name)}</option>`)
+        .join("");
+
+      activeCompany = rivModel.companies[0];
+
+      populateDatacenters();
+      activeDatacenter = activeCompany.datacenters[0];
+      $("datacenterSelect").value = activeDatacenter.id;
+
+      populateConnections();
+      activeConnection = activeDatacenter.connections[0];
+      $("connectionSelect").value = activeConnection.id;
+    }
+
+    function populateDatacenters() {
+      $("datacenterSelect").innerHTML = activeCompany.datacenters
+        .map((dc) => `<option value="${escapeHtml(dc.id)}">${escapeHtml(dc.name)}</option>`)
+        .join("");
+    }
+
+    function populateConnections() {
+      $("connectionSelect").innerHTML = activeDatacenter.connections
+        .map((connection) => `<option value="${escapeHtml(connection.id)}">${escapeHtml(connection.name)}</option>`)
+        .join("");
+    }
+
+    function attachEvents() {
+      $("companySelect").addEventListener("change", () => {
+        activeCompany = rivModel.companies.find((company) => company.id === $("companySelect").value) || rivModel.companies[0];
+
+        populateDatacenters();
+        activeDatacenter = activeCompany.datacenters[0];
+        $("datacenterSelect").value = activeDatacenter.id;
+
+        populateConnections();
+        activeConnection = activeDatacenter.connections[0];
+        $("connectionSelect").value = activeConnection.id;
+
+        loadConnectionDetails();
+      });
+
+      $("datacenterSelect").addEventListener("change", () => {
+        activeDatacenter = activeCompany.datacenters.find((dc) => dc.id === $("datacenterSelect").value) || activeCompany.datacenters[0];
+
+        populateConnections();
+        activeConnection = activeDatacenter.connections[0];
+        $("connectionSelect").value = activeConnection.id;
+
+        loadConnectionDetails();
+      });
+
+      $("connectionSelect").addEventListener("change", () => {
+        activeConnection = activeDatacenter.connections.find((connection) => connection.id === $("connectionSelect").value) || activeDatacenter.connections[0];
+        loadConnectionDetails();
+      });
+
+      $("loadConnectionBtn").addEventListener("click", loadConnectionDetails);
+    }
+
+    function applyIncomingContext() {
+      const params = new URLSearchParams(window.location.search);
+      const requestedPath = params.get("path") || "";
+      const requestedDevice = params.get("device") || "";
+      const requestedPort = params.get("port") || "";
+      const requestedRack = params.get("rack") || "";
+
+      let sessionContext = {};
+
+      try {
+        sessionContext = JSON.parse(sessionStorage.getItem("rivSelectedContext") || "{}");
+      } catch {
+        sessionContext = {};
+      }
+
+      const combined = [
+        requestedPath,
+        requestedDevice,
+        requestedPort,
+        requestedRack,
+        sessionContext.pathName,
+        sessionContext.sourceDevice,
+        sessionContext.sourcePort,
+        sessionContext.destinationDevice,
+        sessionContext.destinationPort
+      ].filter(Boolean).join(" ").toLowerCase();
+
+      if (!combined) {
+        return;
+      }
+
+      const matchingConnection = activeDatacenter.connections.find((connection) => {
+        const haystack = [
+          connection.name,
+          connection.source.rack,
+          connection.source.device,
+          connection.source.port,
+          connection.destination.rack,
+          connection.destination.device,
+          connection.destination.port
+        ].join(" ").toLowerCase();
+
+        return combined.split(/\s+/).some((token) => token.length > 2 && haystack.includes(token));
+      });
+
+      if (matchingConnection) {
+        activeConnection = matchingConnection;
+        $("connectionSelect").value = activeConnection.id;
+      }
+    }
+
+    function loadConnectionDetails() {
+      if (!activeCompany || !activeDatacenter || !activeConnection) {
+        return;
+      }
+
+      renderMetrics();
+      renderSummary();
+      renderEndpoints();
+      renderRouteChain();
+      renderCableRuns();
+      renderCableTotals();
+      renderValidationChecklist();
+      renderTechnicalPanel();
+      updateActionLinks();
+      saveSelectedContext();
+    }
+
+    function renderMetrics() {
+      $("statusMetric").textContent = activeConnection.status === "warning" ? "Review" : "OK";
+      $("runsMetric").textContent = activeConnection.cableRuns.length;
+      $("lengthMetric").textContent = `${calculateTotalMeters(activeConnection)}m`;
+      $("speedMetric").textContent = activeConnection.speed;
+      $("validationMetric").textContent = `${activeConnection.validationScore}%`;
+      $("sideSite").textContent = activeDatacenter.name;
+    }
+
+    function renderSummary() {
+      $("connectionTitle").textContent = activeConnection.name;
+      $("connectionDescription").textContent = activeConnection.description;
+
+      const statusLabel = activeConnection.status === "warning" ? "Needs Review" : "Operational";
+      $("connectionStatus").textContent = statusLabel;
+      $("connectionStatus").className = `status-pill ${activeConnection.status === "warning" ? "warning" : ""}`;
+    }
+
+    function renderEndpoints() {
+      $("sourceTitle").textContent = `${activeConnection.source.device} / ${activeConnection.source.port}`;
+      $("destinationTitle").textContent = `${activeConnection.destination.device} / ${activeConnection.destination.port}`;
+
+      $("sourceDetails").innerHTML = renderEndpointDetails(activeConnection.source);
+      $("destinationDetails").innerHTML = renderEndpointDetails(activeConnection.destination);
+    }
+
+    function renderEndpointDetails(endpoint) {
+      return `
+        <div class="detail-row">
+          <span>Rack / RU</span>
+          <strong>${escapeHtml(endpoint.rack)} · ${escapeHtml(endpoint.ru)}</strong>
+        </div>
+
+        <div class="detail-row">
+          <span>Device Type</span>
+          <strong>${escapeHtml(endpoint.deviceType)}</strong>
+        </div>
+
+        <div class="detail-row">
+          <span>Port</span>
+          <strong>${escapeHtml(endpoint.port)}</strong>
+        </div>
+
+        <div class="detail-row">
+          <span>IP / VLAN</span>
+          <strong>${escapeHtml(endpoint.ip)} · VLAN ${escapeHtml(endpoint.vlan)}</strong>
+        </div>
+
+        <div class="detail-row">
+          <span>Transceiver / Connector</span>
+          <strong>${escapeHtml(endpoint.transceiver)}</strong>
+        </div>
+      `;
+    }
+
+    function renderRouteChain() {
+      $("routeChain").innerHTML = activeConnection.chain.map((node) => `
+        <article class="chain-node ${escapeHtml(node.type)}">
+          <span>${escapeHtml(node.kind)}</span>
+          <strong>${escapeHtml(node.title)}</strong>
+          <small>${escapeHtml(node.meta)}</small>
+        </article>
+      `).join("");
+    }
+
+    function renderCableRuns() {
+      $("cableRunRows").innerHTML = activeConnection.cableRuns.map((run, index) => `
+        <tr>
+          <td><span class="run-id">${index + 1}</span></td>
+          <td>
+            <strong>${escapeHtml(run.from)}</strong>
+            <small>Start point</small>
+          </td>
+          <td>
+            <strong>${escapeHtml(run.to)}</strong>
+            <small>End point</small>
+          </td>
+          <td>
+            <strong>${escapeHtml(run.cableUsed)}</strong>
+          </td>
+          <td>
+            <strong>${escapeHtml(run.length)}</strong>
+          </td>
+          <td>
+            <strong>${escapeHtml(run.connector)}</strong>
+          </td>
+          <td>
+            <strong>${escapeHtml(run.label)}</strong>
+          </td>
+          <td>
+            <small>${escapeHtml(run.note)}</small>
+          </td>
+        </tr>
+      `).join("");
+    }
+
+    function renderCableTotals() {
+      const totals = getCableTotals(activeConnection);
+
+      $("cableTotals").innerHTML = Object.entries(totals).map(([cableType, data]) => `
+        <article class="cable-total-card">
+          <span>${data.count} run${data.count === 1 ? "" : "s"}</span>
+          <strong>${escapeHtml(cableType)} · ${data.meters}m total</strong>
+        </article>
+      `).join("");
+    }
+
+    function renderValidationChecklist() {
+      $("validationGrid").innerHTML = activeConnection.checklist.map((item) => `
+        <article class="check-card">
+          <div class="check-icon ${escapeHtml(item.status)}">${checkSymbol(item.status)}</div>
+          <div>
+            <strong>${escapeHtml(item.name)}</strong>
+            <small>${escapeHtml(item.note)}</small>
+          </div>
+        </article>
+      `).join("");
+
+      $("validationSummary").innerHTML = `
+        Current validation score is <strong>${escapeHtml(activeConnection.validationScore)}%</strong>.
+        Status: <strong>${escapeHtml(activeConnection.status === "warning" ? "needs review" : "operational")}</strong>.
+      `;
+    }
+
+    function renderTechnicalPanel() {
+      $("readinessTitle").textContent = activeConnection.status === "warning"
+        ? "Review before Smart Hands"
+        : "Ready for Smart Hands";
+
+      $("readinessSubtitle").textContent = `${activeConnection.source.device} ${activeConnection.source.port} → ${activeConnection.destination.device} ${activeConnection.destination.port}`;
+
+      $("readinessStatus").textContent = activeConnection.status === "warning" ? "Needs Review" : "Ready";
+      $("readinessStatus").className = `status-pill ${activeConnection.status === "warning" ? "warning" : ""}`;
+
+      $("technicalDetails").innerHTML = `
+        <div class="detail-row">
+          <span>Connection ID</span>
+          <strong>${escapeHtml(activeConnection.circuitId)}</strong>
+        </div>
+
+        <div class="detail-row">
+          <span>Ticket / Change Ref</span>
+          <strong>${escapeHtml(activeConnection.ticketRef)}</strong>
+        </div>
+
+        <div class="detail-row">
+          <span>Protocol</span>
+          <strong>${escapeHtml(activeConnection.protocol)}</strong>
+        </div>
+
+        <div class="detail-row">
+          <span>Speed / VLAN</span>
+          <strong>${escapeHtml(activeConnection.speed)} · VLAN ${escapeHtml(activeConnection.vlan)}</strong>
+        </div>
+
+        <div class="detail-row">
+          <span>Change Window</span>
+          <strong>${escapeHtml(activeConnection.changeWindow)}</strong>
+        </div>
+
+        <div class="detail-row">
+          <span>Cable Totals</span>
+          <div class="compact-list">
+            ${Object.entries(getCableTotals(activeConnection)).map(([cableType, data]) => `
+              <div class="compact-row">
+                <strong>${escapeHtml(cableType)} · ${data.count} run${data.count === 1 ? "" : "s"}</strong>
+                <span>${data.meters}m</span>
+              </div>
+            `).join("")}
+          </div>
+        </div>
+      `;
+
+      $("smartHandsNote").textContent = activeConnection.smartHandsNote;
+    }
+
+    function updateActionLinks() {
+      const params = new URLSearchParams({
+        company: activeCompany.name,
+        datacenter: activeDatacenter.name,
+        connection: activeConnection.name,
+        connectionId: activeConnection.id,
+        path: activeConnection.name,
+        rack: activeConnection.source.rack,
+        device: activeConnection.source.device,
+        port: activeConnection.source.port
+      });
+
+      $("openSmartHands").href = `/smart-hands?${params.toString()}`;
+      $("openConnectivityMap").href = `/connectivity-map?${params.toString()}`;
+      $("openRackView").href = `/rack-view?${params.toString()}`;
+      $("openMultiRack").href = `/multi-rack?${params.toString()}`;
+    }
+
+    function saveSelectedContext() {
+      const context = {
+        company: activeCompany.name,
+        datacenter: activeDatacenter.name,
+        connectionId: activeConnection.id,
+        connectionName: activeConnection.name,
+        connectionStatus: activeConnection.status,
+        validationScore: activeConnection.validationScore,
+        speed: activeConnection.speed,
+        vlan: activeConnection.vlan,
+        sourceRack: activeConnection.source.rack,
+        sourceRu: activeConnection.source.ru,
+        sourceDevice: activeConnection.source.device,
+        sourcePort: activeConnection.source.port,
+        destinationRack: activeConnection.destination.rack,
+        destinationRu: activeConnection.destination.ru,
+        destinationDevice: activeConnection.destination.device,
+        destinationPort: activeConnection.destination.port,
+        cableRuns: activeConnection.cableRuns,
+        cableTotals: getCableTotals(activeConnection),
+        totalCableLength: `${calculateTotalMeters(activeConnection)}m`
+      };
+
+      sessionStorage.setItem("rivSelectedContext", JSON.stringify(context));
+    }
+
+    function getCableTotals(connection) {
+      return connection.cableRuns.reduce((totals, run) => {
+        const cableType = run.cableUsed || "Unspecified cable";
+        const meters = parseCableLengthMeters(run.length);
+
+        if (!totals[cableType]) {
+          totals[cableType] = {
+            count: 0,
+            meters: 0
+          };
+        }
+
+        totals[cableType].count += 1;
+        totals[cableType].meters += meters;
+
+        return totals;
+      }, {});
+    }
+
+    function calculateTotalMeters(connection) {
+      return connection.cableRuns.reduce((total, run) => {
+        return total + parseCableLengthMeters(run.length);
+      }, 0);
+    }
+
+    function parseCableLengthMeters(value) {
+      const match = String(value || "").match(/([\d.]+)\s*m/i);
+      return match ? Number(match[1]) : 0;
+    }
+
+    function checkSymbol(status) {
+      if (status === "warning") return "!";
+      if (status === "pending") return "…";
+      return "✓";
+    }
+
+    async function loadSessionInfo() {
+      try {
+        const response = await fetch("/api/session", { credentials: "same-origin" });
+
+        if (!response.ok) {
+          return;
+        }
+
+        const session = await response.json();
+
+        if (session.display_name) {
+          $("displayName").textContent = session.display_name;
+          $("userInitials").textContent = getInitials(session.display_name);
+        }
+
+        if (session.display_role) {
+          $("displayRole").textContent = session.display_role;
+        }
+      } catch {
+        // The module remains usable even if session metadata is unavailable.
+      }
+    }
+
+    function getInitials(name) {
+      return String(name || "")
+        .trim()
+        .split(/\s+/)
+        .slice(0, 2)
+        .map((part) => part.charAt(0).toUpperCase())
+        .join("") || "MR";
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+  </script>
+</body>
+</html>
