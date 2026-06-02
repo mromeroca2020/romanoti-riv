@@ -52,6 +52,7 @@
         <a href="#infrastructure" class="nav-item active">Infrastructure</a>
         <a href="#rack-view" class="nav-item">Rack View</a>
         <a href="#port-map" class="nav-item">Port Map</a>
+        <a href="#connectivity-map" class="nav-item">Connectivity Map</a>
         <a href="#connections" class="nav-item">Connections</a>
         <a href="#smart-hands" class="nav-item">Smart Hands</a>
         <a href="#legacy-tools" class="nav-item">Current Tools</a>
@@ -230,7 +231,56 @@
         </aside>
 
       </section>
+<!-- ===================================================
+     CONNECTIVITY MAP
+     Purpose:
+     Multi-hop visual path between racks, overhead panels,
+     MDF points, backbone segments and destination racks.
+     =================================================== -->
+<section class="connectivity-map-section" id="connectivity-map">
 
+  <div class="connectivity-header">
+    <div>
+      <p class="panel-label">Connectivity Map</p>
+      <h2 id="connectivityTitle">Connection path not loaded</h2>
+      <p>
+        Visualize how a selected connection moves from rack equipment
+        through OH panels, MDF points, backbone segments and destination racks.
+      </p>
+    </div>
+
+    <div class="connectivity-actions">
+      <button type="button" class="secondary-btn" id="fitConnectivityBtn">
+        Fit to View
+      </button>
+      <button type="button" class="secondary-btn" id="resetConnectivityBtn">
+        Reset
+      </button>
+    </div>
+  </div>
+
+  <div class="connectivity-layout">
+
+    <div class="connectivity-canvas" id="connectivityCanvas">
+      <div class="empty-rack-message">
+        Load a rack and select a connected port to display the multi-hop path.
+      </div>
+    </div>
+
+    <aside class="connection-detail-card">
+      <p class="panel-label">Connection Details</p>
+      <h3 id="connectionDetailTitle">No connection selected</h3>
+
+      <div id="connectionDetailBody" class="detail-body">
+        <p class="muted">
+          Select a connected port such as CORE-SW-01 Eth14 to trace the path.
+        </p>
+      </div>
+    </aside>
+
+  </div>
+
+</section>
       <!-- ===================================================
            PORT INTELLIGENCE SUMMARY
            Purpose:
