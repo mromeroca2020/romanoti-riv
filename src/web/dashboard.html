@@ -1,0 +1,1073 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- =======================================================
+       Romanoti RIV - Operations Hub
+       File: src/web/dashboard.html
+
+       Purpose:
+       Protected landing page after login.
+
+       Product direction:
+       - Keep RIV clean, modular and pleasant for the user.
+       - Avoid one overloaded page.
+       - Let each feature open as a separate protected page.
+       - Prepare RIV for commercial pilots and future client demos.
+
+       This page does NOT depend on app.js.
+       It uses a small internal script only for workspace selection.
+       ======================================================= -->
+
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>Romanoti RIV - Operations Hub</title>
+
+  <style>
+    :root {
+      --bg-main: #071225;
+      --bg-panel: rgba(255, 255, 255, 0.055);
+      --bg-panel-strong: rgba(255, 255, 255, 0.085);
+      --border-soft: rgba(255, 255, 255, 0.10);
+      --text-main: #ffffff;
+      --text-muted: rgba(255, 255, 255, 0.68);
+      --text-soft: rgba(255, 255, 255, 0.52);
+      --accent: #f3dfad;
+      --accent-blue: #38bdf8;
+      --accent-green: #22c55e;
+      --accent-warning: #f59e0b;
+      --danger: #ef4444;
+      --sidebar: #07101f;
+      --card-radius: 24px;
+      --shadow-soft: 0 28px 80px rgba(0, 0, 0, 0.30);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      min-height: 100%;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Arial, Helvetica, sans-serif;
+      color: var(--text-main);
+      background:
+        radial-gradient(circle at top left, rgba(56, 189, 248, 0.12), transparent 28%),
+        radial-gradient(circle at top right, rgba(243, 223, 173, 0.10), transparent 28%),
+        linear-gradient(135deg, #071225 0%, #0d1b31 52%, #050b14 100%);
+    }
+
+    a {
+      color: inherit;
+    }
+
+    .riv-shell {
+      display: grid;
+      grid-template-columns: 290px minmax(0, 1fr);
+      min-height: 100vh;
+    }
+
+    .riv-sidebar {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      padding: 28px 22px;
+      background:
+        linear-gradient(180deg, rgba(7, 16, 31, 0.98), rgba(7, 16, 31, 0.94));
+      border-right: 1px solid var(--border-soft);
+      display: flex;
+      flex-direction: column;
+      gap: 26px;
+    }
+
+    .brand-block {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--border-soft);
+    }
+
+    .brand-icon {
+      width: 54px;
+      height: 54px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, #6366f1, #ef4444);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      font-weight: 900;
+      box-shadow: 0 18px 34px rgba(239, 68, 68, 0.24);
+    }
+
+    .brand-title {
+      font-size: 24px;
+      font-weight: 900;
+      letter-spacing: -0.04em;
+      line-height: 1;
+    }
+
+    .brand-subtitle {
+      margin-top: 5px;
+      color: var(--text-muted);
+      font-size: 14px;
+    }
+
+    .sidebar-nav {
+      display: grid;
+      gap: 8px;
+    }
+
+    .nav-item {
+      text-decoration: none;
+      padding: 13px 15px;
+      border-radius: 14px;
+      color: rgba(255, 255, 255, 0.74);
+      font-size: 14px;
+      font-weight: 700;
+      transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease;
+    }
+
+    .nav-item:hover {
+      background: rgba(255, 255, 255, 0.075);
+      color: #ffffff;
+      transform: translateX(2px);
+    }
+
+    .nav-item.active {
+      background: rgba(56, 189, 248, 0.14);
+      color: #ffffff;
+      border: 1px solid rgba(56, 189, 248, 0.26);
+    }
+
+    .sidebar-spacer {
+      flex: 1;
+    }
+
+    .sidebar-card {
+      padding: 16px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.055);
+      border: 1px solid var(--border-soft);
+    }
+
+    .sidebar-card strong {
+      display: block;
+      margin-bottom: 5px;
+      color: #ffffff;
+    }
+
+    .sidebar-card span {
+      color: var(--text-muted);
+      font-size: 13px;
+      line-height: 1.4;
+    }
+
+    .status-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .status-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 999px;
+      background: var(--accent-green);
+      box-shadow: 0 0 0 5px rgba(34, 197, 94, 0.12);
+    }
+
+    .riv-main {
+      padding: 32px;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 20px;
+      margin-bottom: 28px;
+    }
+
+    .eyebrow {
+      margin: 0 0 8px;
+      color: #a9c7ff;
+      font-size: 13px;
+      font-weight: 900;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+    }
+
+    .topbar h1 {
+      margin: 0;
+      font-size: clamp(34px, 4vw, 54px);
+      line-height: 0.96;
+      letter-spacing: -0.055em;
+    }
+
+    .topbar p {
+      margin: 12px 0 0;
+      max-width: 780px;
+      color: var(--text-muted);
+      line-height: 1.6;
+      font-size: 16px;
+    }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-shrink: 0;
+    }
+
+    .user-pill {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 11px 15px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.07);
+      border: 1px solid var(--border-soft);
+    }
+
+    .user-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 999px;
+      background: rgba(56, 189, 248, 0.20);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+    }
+
+    .user-pill strong {
+      display: block;
+      font-size: 14px;
+    }
+
+    .user-pill span:last-child {
+      display: block;
+      color: var(--text-muted);
+      font-size: 12px;
+      margin-top: 2px;
+    }
+
+    .logout-link {
+      text-decoration: none;
+      padding: 13px 16px;
+      border-radius: 999px;
+      border: 1px solid var(--border-soft);
+      color: #ffffff;
+      font-weight: 800;
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .hero-panel {
+      position: relative;
+      overflow: hidden;
+      padding: 30px;
+      border-radius: 32px;
+      background:
+        radial-gradient(circle at top right, rgba(243, 223, 173, 0.13), transparent 28%),
+        linear-gradient(145deg, rgba(255, 255, 255, 0.085), rgba(255, 255, 255, 0.045));
+      border: 1px solid var(--border-soft);
+      box-shadow: var(--shadow-soft);
+      margin-bottom: 22px;
+    }
+
+    .hero-panel::after {
+      content: "";
+      position: absolute;
+      right: -120px;
+      top: -120px;
+      width: 300px;
+      height: 300px;
+      border-radius: 999px;
+      background: rgba(56, 189, 248, 0.10);
+      filter: blur(8px);
+    }
+
+    .hero-content {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 26px;
+      align-items: stretch;
+    }
+
+    .hero-panel h2 {
+      margin: 0 0 10px;
+      font-size: clamp(28px, 3vw, 42px);
+      letter-spacing: -0.045em;
+    }
+
+    .hero-panel p {
+      margin: 0;
+      color: var(--text-muted);
+      line-height: 1.65;
+    }
+
+    .workspace-card {
+      padding: 20px;
+      border-radius: 24px;
+      background: rgba(7, 18, 37, 0.62);
+      border: 1px solid var(--border-soft);
+    }
+
+    .workspace-card h3 {
+      margin: 0 0 14px;
+    }
+
+    .selection-grid {
+      display: grid;
+      gap: 13px;
+    }
+
+    .field-group {
+      display: grid;
+      gap: 7px;
+    }
+
+    .field-group span {
+      color: rgba(255, 255, 255, 0.72);
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: 0.10em;
+      text-transform: uppercase;
+    }
+
+    select {
+      width: 100%;
+      padding: 13px 14px;
+      border-radius: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      background: rgba(2, 8, 18, 0.85);
+      color: #ffffff;
+      font-weight: 800;
+      outline: none;
+    }
+
+    .button-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .primary-btn,
+    .secondary-btn,
+    .ghost-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      text-decoration: none;
+      border: none;
+      cursor: pointer;
+      border-radius: 999px;
+      padding: 13px 17px;
+      font-size: 14px;
+      font-weight: 900;
+      line-height: 1;
+    }
+
+    .primary-btn {
+      color: #071225;
+      background: linear-gradient(135deg, #f3dfad, #fbbf24);
+    }
+
+    .secondary-btn {
+      color: #ffffff;
+      background: rgba(255, 255, 255, 0.075);
+      border: 1px solid var(--border-soft);
+    }
+
+    .ghost-btn {
+      color: var(--accent);
+      background: transparent;
+      border: 1px solid rgba(243, 223, 173, 0.28);
+    }
+
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+      margin: 22px 0;
+    }
+
+    .metric-card {
+      padding: 18px;
+      border-radius: 22px;
+      background: var(--bg-panel);
+      border: 1px solid var(--border-soft);
+    }
+
+    .metric-card span {
+      display: block;
+      color: var(--text-soft);
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: 0.10em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    .metric-card strong {
+      display: block;
+      font-size: 26px;
+      letter-spacing: -0.04em;
+    }
+
+    .metric-card small {
+      display: block;
+      color: var(--text-muted);
+      margin-top: 7px;
+      line-height: 1.4;
+    }
+
+    .module-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+      margin-top: 20px;
+    }
+
+    .module-card {
+      min-height: 245px;
+      padding: 22px;
+      border-radius: 26px;
+      background:
+        linear-gradient(145deg, rgba(255,255,255,0.075), rgba(255,255,255,0.04));
+      border: 1px solid var(--border-soft);
+      text-decoration: none;
+      color: inherit;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+    }
+
+    .module-card:hover {
+      transform: translateY(-3px);
+      border-color: rgba(243, 223, 173, 0.46);
+      background:
+        linear-gradient(145deg, rgba(255,255,255,0.095), rgba(255,255,255,0.052));
+    }
+
+    .module-tag {
+      display: inline-flex;
+      width: fit-content;
+      padding: 7px 10px;
+      border-radius: 999px;
+      background: rgba(243, 223, 173, 0.14);
+      color: var(--accent);
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: 0.10em;
+      text-transform: uppercase;
+      margin-bottom: 14px;
+    }
+
+    .module-card h3 {
+      margin: 0 0 8px;
+      font-size: 22px;
+      letter-spacing: -0.035em;
+    }
+
+    .module-card p {
+      margin: 0;
+      color: var(--text-muted);
+      line-height: 1.58;
+      font-size: 14px;
+    }
+
+    .module-card-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 14px;
+      margin-top: 22px;
+      color: #ffffff;
+      font-weight: 900;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      padding: 6px 9px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      background: rgba(34, 197, 94, 0.14);
+      color: #86efac;
+    }
+
+    .status-pill.planned {
+      background: rgba(245, 158, 11, 0.13);
+      color: #fde68a;
+    }
+
+    .status-pill.ready {
+      background: rgba(56, 189, 248, 0.14);
+      color: #bae6fd;
+    }
+
+    .section-title {
+      margin-top: 28px;
+      margin-bottom: 12px;
+    }
+
+    .section-title h2 {
+      margin: 0 0 8px;
+      letter-spacing: -0.04em;
+    }
+
+    .section-title p {
+      margin: 0;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    .roadmap-panel {
+      margin-top: 22px;
+      padding: 24px;
+      border-radius: 28px;
+      background: rgba(255, 255, 255, 0.045);
+      border: 1px solid var(--border-soft);
+    }
+
+    .roadmap-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .roadmap-step {
+      padding: 16px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.045);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .roadmap-step span {
+      display: block;
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 900;
+      margin-bottom: 8px;
+    }
+
+    .roadmap-step strong {
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    .roadmap-step p {
+      margin: 0;
+      color: var(--text-muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    @media (max-width: 1180px) {
+      .riv-shell {
+        grid-template-columns: 1fr;
+      }
+
+      .riv-sidebar {
+        position: relative;
+        height: auto;
+      }
+
+      .sidebar-nav {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .hero-content,
+      .module-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .metrics-grid,
+      .roadmap-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 720px) {
+      .riv-main {
+        padding: 20px;
+      }
+
+      .topbar {
+        flex-direction: column;
+      }
+
+      .top-actions {
+        width: 100%;
+        justify-content: space-between;
+      }
+
+      .sidebar-nav,
+      .metrics-grid,
+      .roadmap-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .hero-panel {
+        padding: 22px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="riv-shell">
+
+    <!-- =====================================================
+         Sidebar
+         ===================================================== -->
+    <aside class="riv-sidebar">
+      <div class="brand-block">
+        <div class="brand-icon">R</div>
+        <div>
+          <div class="brand-title">Romanoti RIV</div>
+          <div class="brand-subtitle">Infrastructure Visualizer</div>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav" aria-label="RIV module navigation">
+        <a class="nav-item active" href="/dashboard">Operations Hub</a>
+        <a class="nav-item" href="/rack-view">Rack View</a>
+        <a class="nav-item" href="/multi-rack">Multi-Rack View</a>
+        <a class="nav-item" href="/connectivity-map">Connectivity Map</a>
+        <a class="nav-item" href="/connection-details">Connection Details</a>
+        <a class="nav-item" href="/smart-hands">Smart Hands</a>
+        <a class="nav-item" href="/tools">Current Tools</a>
+      </nav>
+
+      <div class="sidebar-spacer"></div>
+
+      <div class="sidebar-card">
+        <div class="status-row">
+          <div class="status-dot"></div>
+          <div>
+            <strong>DemoDC-01</strong>
+            <span>Protected pilot environment</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="sidebar-card">
+        <strong>RIV Pilot v1.2</strong>
+        <span>Modular architecture ready for commercial pilot evolution.</span>
+      </div>
+    </aside>
+
+    <!-- =====================================================
+         Main content
+         ===================================================== -->
+    <main class="riv-main">
+
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Romanoti Infrastructure Visualizer</p>
+          <h1>Operations Hub</h1>
+          <p>
+            A clean control center for rack mapping, connectivity visualization,
+            connection review and Smart Hands workflow preparation.
+          </p>
+        </div>
+
+        <div class="top-actions">
+          <div class="user-pill">
+            <span class="user-avatar" id="userInitials">MR</span>
+            <div>
+              <strong id="displayName">Romanoti Admin</strong>
+              <span id="displayRole">Authorized session</span>
+            </div>
+          </div>
+
+          <a class="logout-link" href="/logout">Logout</a>
+        </div>
+      </header>
+
+      <!-- ===================================================
+           Hero / Workspace selector
+           =================================================== -->
+      <section class="hero-panel">
+        <div class="hero-content">
+          <div>
+            <p class="eyebrow">Pilot Workspace</p>
+            <h2>Start with context. Open only the module you need.</h2>
+            <p>
+              RIV is now organized as a modular operations platform. Select the
+              working context, then open Rack View, Multi-Rack View, Connectivity
+              Map, Connection Details, Smart Hands or Current Tools as focused
+              pages.
+            </p>
+
+            <div class="button-row">
+              <a class="primary-btn" id="primaryRackLink" href="/rack-view">
+                Open Rack View
+              </a>
+              <a class="secondary-btn" id="primaryConnectivityLink" href="/connectivity-map">
+                Open Connectivity Map
+              </a>
+              <a class="ghost-btn" href="/multi-rack">
+                Open Multi-Rack View
+              </a>
+            </div>
+          </div>
+
+          <div class="workspace-card">
+            <h3>Workspace Selection</h3>
+
+            <div class="selection-grid">
+              <label class="field-group">
+                <span>Company</span>
+                <select id="companySelect">
+                  <option value="RomanoTI-Solutions Inc.">RomanoTI-Solutions Inc.</option>
+                </select>
+              </label>
+
+              <label class="field-group">
+                <span>Data Center</span>
+                <select id="datacenterSelect">
+                  <option value="DemoDC-01">DemoDC-01</option>
+                </select>
+              </label>
+
+              <label class="field-group">
+                <span>Rack</span>
+                <select id="rackSelect">
+                  <option value="Rack R42">Rack R42 - Network / Compute Rack</option>
+                  <option value="Rack R43">Rack R43 - Compute Expansion</option>
+                  <option value="Rack R44">Rack R44 - Storage / Backup</option>
+                </select>
+              </label>
+            </div>
+
+            <div class="button-row">
+              <button class="primary-btn" type="button" id="saveWorkspaceBtn">
+                Save Workspace
+              </button>
+              <a class="secondary-btn" href="/dashboard">
+                Refresh Hub
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================================================
+           Summary metrics
+           =================================================== -->
+      <section class="metrics-grid" aria-label="RIV operations summary">
+        <article class="metric-card">
+          <span>Selected Site</span>
+          <strong id="selectedSiteMetric">DemoDC-01</strong>
+          <small>Protected pilot environment.</small>
+        </article>
+
+        <article class="metric-card">
+          <span>Selected Rack</span>
+          <strong id="selectedRackMetric">Rack R42</strong>
+          <small>Network / compute rack ready for inspection.</small>
+        </article>
+
+        <article class="metric-card">
+          <span>Known Paths</span>
+          <strong>2</strong>
+          <small>Connectivity Map includes operational and review-required paths.</small>
+        </article>
+
+        <article class="metric-card">
+          <span>Product Mode</span>
+          <strong>Pilot</strong>
+          <small>Structured for future commercial demonstrations.</small>
+        </article>
+      </section>
+
+      <!-- ===================================================
+           Module launcher
+           =================================================== -->
+      <section class="section-title">
+        <p class="eyebrow">Focused Modules</p>
+        <h2>Open one operational view at a time</h2>
+        <p>
+          Each module is separated to reduce visual overload and guide the user
+          through clear decisions and actions.
+        </p>
+      </section>
+
+      <section class="module-grid" aria-label="RIV modules">
+
+        <a class="module-card" href="/rack-view">
+          <div>
+            <span class="module-tag">Rack Operations</span>
+            <h3>Rack View</h3>
+            <p>
+              Inspect one physical rack, RU placement, devices, ports, power
+              context and selected equipment details.
+            </p>
+          </div>
+          <div class="module-card-footer">
+            <span>Open module →</span>
+            <small class="status-pill ready">Ready route</small>
+          </div>
+        </a>
+
+        <a class="module-card" href="/multi-rack">
+          <div>
+            <span class="module-tag">Data Center View</span>
+            <h3>Multi-Rack View</h3>
+            <p>
+              See multiple racks together, compare utilization, capacity, health
+              status and future rack-to-rack relationships.
+            </p>
+          </div>
+          <div class="module-card-footer">
+            <span>Open module →</span>
+            <small class="status-pill planned">Next build</small>
+          </div>
+        </a>
+
+        <a class="module-card" href="/connectivity-map">
+          <div>
+            <span class="module-tag">Path Visualization</span>
+            <h3>Connectivity Map</h3>
+            <p>
+              Visualize how a connection moves through devices, rack, OH panels,
+              MDF points, backbone segments and destinations.
+            </p>
+          </div>
+          <div class="module-card-footer">
+            <span>Open module →</span>
+            <small class="status-pill ready">Ready route</small>
+          </div>
+        </a>
+
+        <a class="module-card" href="/connection-details">
+          <div>
+            <span class="module-tag">Technical Review</span>
+            <h3>Connection Details</h3>
+            <p>
+              Review source, destination, cable type, length, speed, VLAN,
+              path status and validation notes.
+            </p>
+          </div>
+          <div class="module-card-footer">
+            <span>Open module →</span>
+            <small class="status-pill planned">Planned</small>
+          </div>
+        </a>
+
+        <a class="module-card" href="/smart-hands">
+          <div>
+            <span class="module-tag">Field Workflow</span>
+            <h3>Smart Hands</h3>
+            <p>
+              Prepare guided technician tasks, checklist, evidence notes,
+              engineer confirmation and future closure workflow.
+            </p>
+          </div>
+          <div class="module-card-footer">
+            <span>Open module →</span>
+            <small class="status-pill planned">Planned</small>
+          </div>
+        </a>
+
+        <a class="module-card" href="/tools">
+          <div>
+            <span class="module-tag">Automation</span>
+            <h3>Current Tools</h3>
+            <p>
+              Use existing ticket parser, Service Request Builder, verification
+              report, runbook and closure generator.
+            </p>
+          </div>
+          <div class="module-card-footer">
+            <span>Open module →</span>
+            <small class="status-pill ready">Ready route</small>
+          </div>
+        </a>
+
+      </section>
+
+      <!-- ===================================================
+           Product roadmap panel
+           =================================================== -->
+      <section class="roadmap-panel">
+        <p class="eyebrow">Product Direction</p>
+        <h2>RIV Pilot → RIV Operations → DCIM Light</h2>
+        <p>
+          This dashboard is now designed as a product entry point for future
+          business pilots. The focus is clarity, modularity and guided action.
+        </p>
+
+        <div class="roadmap-grid">
+          <article class="roadmap-step">
+            <span>Phase 1</span>
+            <strong>Protected Modules</strong>
+            <p>Separate each feature into its own authenticated page.</p>
+          </article>
+
+          <article class="roadmap-step">
+            <span>Phase 2</span>
+            <strong>Multi-Rack View</strong>
+            <p>Build a clean visual overview for multiple racks per site.</p>
+          </article>
+
+          <article class="roadmap-step">
+            <span>Phase 3</span>
+            <strong>Smart Hands</strong>
+            <p>Create field-ready task preparation and evidence workflow.</p>
+          </article>
+
+          <article class="roadmap-step">
+            <span>Phase 4</span>
+            <strong>Backend Model</strong>
+            <p>Move demo data into persistent inventory and connection APIs.</p>
+          </article>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <script>
+    // =======================================================
+    // Romanoti RIV - Dashboard lightweight script
+    //
+    // Purpose:
+    // - Keep dashboard independent from app.js during migration.
+    // - Store selected workspace for future module pages.
+    // - Fetch session metadata when available.
+    // =======================================================
+
+    const companySelect = document.getElementById("companySelect");
+    const datacenterSelect = document.getElementById("datacenterSelect");
+    const rackSelect = document.getElementById("rackSelect");
+    const saveWorkspaceBtn = document.getElementById("saveWorkspaceBtn");
+
+    const selectedSiteMetric = document.getElementById("selectedSiteMetric");
+    const selectedRackMetric = document.getElementById("selectedRackMetric");
+
+    const primaryRackLink = document.getElementById("primaryRackLink");
+    const primaryConnectivityLink = document.getElementById("primaryConnectivityLink");
+
+    const displayName = document.getElementById("displayName");
+    const displayRole = document.getElementById("displayRole");
+    const userInitials = document.getElementById("userInitials");
+
+    function getWorkspace() {
+      return {
+        company: companySelect.value,
+        datacenter: datacenterSelect.value,
+        rack: rackSelect.value
+      };
+    }
+
+    function saveWorkspace() {
+      const workspace = getWorkspace();
+      localStorage.setItem("rivWorkspace", JSON.stringify(workspace));
+      updateWorkspaceDisplay(workspace);
+    }
+
+    function loadWorkspace() {
+      const saved = localStorage.getItem("rivWorkspace");
+
+      if (!saved) {
+        saveWorkspace();
+        return;
+      }
+
+      try {
+        const workspace = JSON.parse(saved);
+
+        if (workspace.company) {
+          companySelect.value = workspace.company;
+        }
+
+        if (workspace.datacenter) {
+          datacenterSelect.value = workspace.datacenter;
+        }
+
+        if (workspace.rack) {
+          rackSelect.value = workspace.rack;
+        }
+
+        updateWorkspaceDisplay(getWorkspace());
+      } catch (error) {
+        saveWorkspace();
+      }
+    }
+
+    function updateWorkspaceDisplay(workspace) {
+      selectedSiteMetric.textContent = workspace.datacenter || "No site selected";
+      selectedRackMetric.textContent = workspace.rack || "No rack selected";
+
+      const params = new URLSearchParams({
+        company: workspace.company || "",
+        datacenter: workspace.datacenter || "",
+        rack: workspace.rack || ""
+      });
+
+      primaryRackLink.href = "/rack-view?" + params.toString();
+      primaryConnectivityLink.href = "/connectivity-map?" + params.toString();
+    }
+
+    function getInitials(name) {
+      if (!name) {
+        return "MR";
+      }
+
+      const parts = name.trim().split(/\s+/).slice(0, 2);
+      return parts.map(part => part.charAt(0).toUpperCase()).join("") || "MR";
+    }
+
+    async function loadSessionInfo() {
+      try {
+        const response = await fetch("/api/session", {
+          credentials: "same-origin"
+        });
+
+        if (!response.ok) {
+          return;
+        }
+
+        const session = await response.json();
+
+        if (session.display_name) {
+          displayName.textContent = session.display_name;
+          userInitials.textContent = getInitials(session.display_name);
+        }
+
+        if (session.display_role) {
+          displayRole.textContent = session.display_role;
+        }
+      } catch (error) {
+        // Dashboard remains usable even if session metadata cannot be loaded.
+      }
+    }
+
+    saveWorkspaceBtn.addEventListener("click", saveWorkspace);
+    companySelect.addEventListener("change", saveWorkspace);
+    datacenterSelect.addEventListener("change", saveWorkspace);
+    rackSelect.addEventListener("change", saveWorkspace);
+
+    loadWorkspace();
+    loadSessionInfo();
+  </script>
+</body>
+</html>
