@@ -1,0 +1,1776 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- =======================================================
+       Romanoti RIV - Multi-Rack View
+       File: src/web/multi-rack.html
+
+       Purpose:
+       Dedicated protected module for viewing multiple racks
+       in a clean, focused, commercial-pilot-ready page.
+
+       Update included:
+       - Mini RU scale on each rack.
+       - Device RU range visible inside every device block.
+       - Compact front-panel port visualization for switches,
+         firewall/security devices, servers and storage.
+       - The detailed Rack View remains the place for full-size
+         port inspection. This Multi-Rack View gives a useful
+         operational preview without overloading the screen.
+       ======================================================= -->
+
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>Romanoti RIV - Multi-Rack View</title>
+
+  <style>
+    :root {
+      --bg: #071225;
+      --panel: rgba(255, 255, 255, 0.065);
+      --panel-strong: rgba(255, 255, 255, 0.095);
+      --border: rgba(255, 255, 255, 0.12);
+      --border-strong: rgba(255, 255, 255, 0.20);
+      --text: #ffffff;
+      --muted: rgba(255, 255, 255, 0.66);
+      --soft: rgba(255, 255, 255, 0.46);
+      --gold: #f3dfad;
+      --gold-strong: #fbbf24;
+      --blue: #38bdf8;
+      --green: #22c55e;
+      --yellow: #f59e0b;
+      --red: #ef4444;
+      --purple: #a78bfa;
+      --radius: 24px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Arial, Helvetica, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(56, 189, 248, 0.13), transparent 32%),
+        radial-gradient(circle at top right, rgba(251, 191, 36, 0.08), transparent 28%),
+        linear-gradient(135deg, #071225 0%, #0d1b31 52%, #050b14 100%);
+    }
+
+    a {
+      color: inherit;
+    }
+
+    button,
+    select {
+      font-family: inherit;
+    }
+
+    .shell {
+      display: grid;
+      grid-template-columns: 280px minmax(0, 1fr);
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      padding: 28px 20px;
+      background: rgba(5, 12, 24, 0.96);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .brand-mark {
+      width: 54px;
+      height: 54px;
+      border-radius: 16px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, #6366f1, #ef4444);
+      font-size: 28px;
+      font-weight: 900;
+      box-shadow: 0 18px 36px rgba(239, 68, 68, 0.25);
+    }
+
+    .brand-title {
+      font-size: 24px;
+      font-weight: 900;
+      letter-spacing: -0.04em;
+      line-height: 1;
+    }
+
+    .brand-subtitle {
+      margin-top: 5px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .nav {
+      display: grid;
+      gap: 8px;
+    }
+
+    .nav a {
+      text-decoration: none;
+      padding: 13px 15px;
+      border-radius: 14px;
+      color: rgba(255, 255, 255, 0.74);
+      font-size: 14px;
+      font-weight: 800;
+    }
+
+    .nav a:hover {
+      background: rgba(255, 255, 255, 0.075);
+      color: #ffffff;
+    }
+
+    .nav a.active {
+      background: rgba(56, 189, 248, 0.16);
+      border: 1px solid rgba(56, 189, 248, 0.30);
+      color: #ffffff;
+    }
+
+    .sidebar-spacer {
+      flex: 1;
+    }
+
+    .mini-card {
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.055);
+      border-radius: 18px;
+      padding: 16px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    .mini-card strong {
+      display: block;
+      color: #ffffff;
+      margin-bottom: 4px;
+    }
+
+    .status-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .status-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 999px;
+      background: var(--green);
+      box-shadow: 0 0 0 5px rgba(34, 197, 94, 0.13);
+    }
+
+    .main {
+      padding: 32px;
+      min-width: 0;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      gap: 24px;
+      align-items: flex-start;
+      margin-bottom: 24px;
+    }
+
+    .eyebrow {
+      margin: 0 0 8px;
+      color: #a9c7ff;
+      font-size: 13px;
+      font-weight: 900;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(36px, 4vw, 56px);
+      line-height: 0.96;
+      letter-spacing: -0.055em;
+    }
+
+    .lead {
+      margin: 12px 0 0;
+      max-width: 920px;
+      color: var(--muted);
+      line-height: 1.55;
+      font-size: 16px;
+    }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-shrink: 0;
+    }
+
+    .user-pill {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 11px 15px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.075);
+      border: 1px solid var(--border);
+    }
+
+    .avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 999px;
+      background: rgba(56, 189, 248, 0.20);
+      display: grid;
+      place-items: center;
+      font-weight: 900;
+    }
+
+    .user-pill strong {
+      display: block;
+      font-size: 14px;
+    }
+
+    .user-pill span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 2px;
+    }
+
+    .btn,
+    .btn-primary,
+    .btn-ghost,
+    .btn-danger {
+      min-height: 44px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      padding: 12px 17px;
+      font-weight: 900;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      white-space: nowrap;
+    }
+
+    .btn {
+      color: #ffffff;
+      background: rgba(255, 255, 255, 0.075);
+    }
+
+    .btn-primary {
+      border: none;
+      color: #071225;
+      background: linear-gradient(135deg, var(--gold), var(--gold-strong));
+    }
+
+    .btn-ghost {
+      color: var(--gold);
+      background: transparent;
+      border-color: rgba(243, 223, 173, 0.30);
+    }
+
+    .btn-danger {
+      color: #fecaca;
+      background: rgba(239, 68, 68, 0.10);
+      border-color: rgba(239, 68, 68, 0.22);
+    }
+
+    .workspace {
+      border-radius: 28px;
+      padding: 22px;
+      margin-bottom: 20px;
+      border: 1px solid var(--border);
+      background:
+        radial-gradient(circle at top right, rgba(56, 189, 248, 0.10), transparent 34%),
+        linear-gradient(145deg, rgba(255,255,255,0.085), rgba(255,255,255,0.045));
+    }
+
+    .workspace-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr auto;
+      gap: 14px;
+      align-items: end;
+    }
+
+    .field {
+      display: grid;
+      gap: 7px;
+    }
+
+    .field label {
+      color: rgba(255,255,255,0.72);
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: 0.10em;
+      text-transform: uppercase;
+    }
+
+    select {
+      width: 100%;
+      min-height: 46px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,0.14);
+      background: rgba(2, 8, 18, 0.88);
+      color: #ffffff;
+      font-weight: 800;
+      outline: none;
+    }
+
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+
+    .metric-card {
+      border-radius: 22px;
+      padding: 20px;
+      background: rgba(255, 255, 255, 0.060);
+      border: 1px solid var(--border);
+    }
+
+    .metric-card span {
+      display: block;
+      color: var(--soft);
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      margin-bottom: 9px;
+    }
+
+    .metric-card strong {
+      display: block;
+      font-size: 30px;
+      line-height: 1;
+      letter-spacing: -0.04em;
+    }
+
+    .module-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 390px;
+      gap: 18px;
+      align-items: start;
+    }
+
+    .panel {
+      border-radius: var(--radius);
+      background: linear-gradient(145deg, rgba(255,255,255,0.070), rgba(255,255,255,0.040));
+      border: 1px solid var(--border);
+      box-shadow: 0 18px 55px rgba(0,0,0,0.18);
+    }
+
+    .panel-pad {
+      padding: 22px;
+    }
+
+    .panel-title {
+      margin: 0 0 16px;
+      color: #a9c7ff;
+      font-size: 13px;
+      font-weight: 900;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+    }
+
+    .datahall-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 18px;
+      margin-bottom: 18px;
+    }
+
+    .datahall-header h2 {
+      margin: 0;
+      font-size: 28px;
+      letter-spacing: -0.045em;
+    }
+
+    .datahall-header p {
+      margin: 8px 0 0;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 9px;
+      justify-content: flex-end;
+    }
+
+    .legend-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      border-radius: 999px;
+      padding: 8px 11px;
+      background: rgba(255, 255, 255, 0.075);
+      color: rgba(255, 255, 255, 0.78);
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .legend-dot {
+      width: 11px;
+      height: 11px;
+      border-radius: 999px;
+      background: var(--green);
+    }
+
+    .legend-dot.warning {
+      background: var(--yellow);
+    }
+
+    .legend-dot.offline {
+      background: var(--red);
+    }
+
+    .legend-dot.selected {
+      background: var(--blue);
+    }
+
+    .legend-dot.port-up {
+      background: var(--green);
+      border-radius: 3px;
+    }
+
+    .legend-dot.port-warning {
+      background: var(--yellow);
+      border-radius: 3px;
+    }
+
+    .datahall-canvas {
+      min-height: 620px;
+      overflow: auto;
+      border-radius: 22px;
+      border: 1px solid rgba(255,255,255,0.09);
+      background:
+        linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px),
+        linear-gradient(180deg, rgba(255,255,255,0.035) 1px, transparent 1px),
+        radial-gradient(circle at center, rgba(56,189,248,0.08), transparent 48%),
+        rgba(2, 8, 18, 0.40);
+      background-size: 46px 46px, 46px 46px, auto, auto;
+      padding: 30px;
+    }
+
+    .datahall-row-label {
+      color: rgba(255,255,255,0.48);
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      margin: 0 0 14px;
+    }
+
+    .rack-row {
+      display: flex;
+      gap: 24px;
+      align-items: stretch;
+      min-width: 1050px;
+    }
+
+    .rack-card {
+      position: relative;
+      width: 250px;
+      min-height: 550px;
+      border-radius: 18px;
+      padding: 16px 14px;
+      background:
+        linear-gradient(90deg, rgba(255,255,255,0.08), transparent 8%, transparent 92%, rgba(255,255,255,0.08)),
+        linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.025));
+      border: 2px solid rgba(255,255,255,0.15);
+      cursor: pointer;
+      transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+    }
+
+    .rack-card:hover {
+      transform: translateY(-3px);
+      border-color: rgba(243, 223, 173, 0.40);
+    }
+
+    .rack-card.selected {
+      border-color: rgba(56, 189, 248, 0.95);
+      box-shadow: 0 0 0 5px rgba(56, 189, 248, 0.14);
+    }
+
+    .rack-card.warning {
+      border-color: rgba(245, 158, 11, 0.50);
+    }
+
+    .rack-card.offline {
+      border-color: rgba(239, 68, 68, 0.50);
+    }
+
+    .rack-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .rack-name {
+      font-size: 24px;
+      font-weight: 900;
+      letter-spacing: -0.04em;
+    }
+
+    .rack-type {
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+      line-height: 1.3;
+    }
+
+    .rack-state {
+      border-radius: 999px;
+      padding: 6px 8px;
+      background: rgba(34,197,94,0.16);
+      color: #86efac;
+      font-size: 10px;
+      font-weight: 900;
+      text-transform: uppercase;
+      border: 1px solid rgba(34,197,94,0.30);
+    }
+
+    .rack-state.warning {
+      background: rgba(245,158,11,0.16);
+      color: #fde68a;
+      border-color: rgba(245,158,11,0.34);
+    }
+
+    .rack-state.offline {
+      background: rgba(239,68,68,0.16);
+      color: #fecaca;
+      border-color: rgba(239,68,68,0.34);
+    }
+
+    .mini-rack {
+      position: relative;
+      height: 420px;
+      border-radius: 12px;
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      background:
+        repeating-linear-gradient(
+          to bottom,
+          rgba(255,255,255,0.040) 0,
+          rgba(255,255,255,0.040) 1px,
+          transparent 1px,
+          transparent calc(100% / 42)
+        ),
+        rgba(2, 8, 18, 0.38);
+      overflow: hidden;
+    }
+
+    .ru-marker {
+      position: absolute;
+      left: 4px;
+      width: 21px;
+      transform: translateY(-50%);
+      color: rgba(199, 210, 254, 0.84);
+      font-size: 8px;
+      line-height: 1;
+      text-align: right;
+      font-weight: 900;
+      pointer-events: none;
+      z-index: 4;
+    }
+
+    .ru-marker.right {
+      left: auto;
+      right: 4px;
+      text-align: left;
+    }
+
+    .ru-marker.major {
+      color: #e0e7ff;
+      font-size: 9px;
+    }
+
+    .ru-tick {
+      position: absolute;
+      left: 29px;
+      right: 29px;
+      height: 1px;
+      background: rgba(199, 210, 254, 0.11);
+      pointer-events: none;
+    }
+
+    .ru-tick.major {
+      background: rgba(199, 210, 254, 0.22);
+    }
+
+    .mini-device {
+      position: absolute;
+      left: 30px;
+      right: 30px;
+      min-height: 12px;
+      border-radius: 7px;
+      border: 1px solid rgba(255,255,255,0.18);
+      background: rgba(34,197,94,0.36);
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 6px;
+      color: #ffffff;
+      overflow: hidden;
+    }
+
+    .mini-device.server {
+      background: rgba(59,130,246,0.42);
+    }
+
+    .mini-device.storage {
+      background: rgba(168,85,247,0.42);
+    }
+
+    .mini-device.power {
+      background: rgba(245,158,11,0.42);
+    }
+
+    .mini-device.security {
+      background: rgba(239,68,68,0.35);
+    }
+
+    .mini-device-label {
+      min-width: 0;
+      line-height: 1.05;
+    }
+
+    .mini-device-label strong {
+      display: block;
+      font-size: 9px;
+      font-weight: 900;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .mini-device-label span {
+      display: block;
+      margin-top: 2px;
+      color: rgba(255,255,255,0.76);
+      font-size: 7px;
+      font-weight: 900;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+    }
+
+    .mini-ports {
+      display: grid;
+      gap: 2px;
+      justify-content: end;
+    }
+
+    .mini-ports.switch {
+      grid-template-columns: repeat(8, 5px);
+    }
+
+    .mini-ports.security {
+      grid-template-columns: repeat(4, 5px);
+    }
+
+    .mini-ports.server,
+    .mini-ports.storage {
+      grid-template-columns: repeat(4, 5px);
+    }
+
+    .mini-port {
+      width: 5px;
+      height: 5px;
+      border-radius: 2px;
+      background: rgba(34,197,94,0.92);
+      border: 1px solid rgba(255,255,255,0.25);
+    }
+
+    .mini-port.warning {
+      background: rgba(245,158,11,0.96);
+    }
+
+    .mini-port.offline {
+      background: rgba(51,65,85,0.95);
+    }
+
+    .rack-footer {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .rack-stat {
+      border-radius: 12px;
+      padding: 9px;
+      background: rgba(255,255,255,0.060);
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .rack-stat span {
+      display: block;
+      color: var(--soft);
+      font-size: 10px;
+      font-weight: 900;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .rack-stat strong {
+      font-size: 14px;
+    }
+
+    .detail-panel h2 {
+      margin: 0;
+      font-size: 28px;
+      letter-spacing: -0.04em;
+    }
+
+    .detail-subtitle {
+      color: var(--muted);
+      margin: 7px 0 0;
+      line-height: 1.45;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin: 16px 0;
+      padding: 9px 13px;
+      border-radius: 999px;
+      color: #86efac;
+      background: rgba(34,197,94,0.16);
+      border: 1px solid rgba(34,197,94,0.28);
+      font-size: 13px;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    .status-pill.warning {
+      color: #fde68a;
+      background: rgba(245,158,11,0.16);
+      border-color: rgba(245,158,11,0.34);
+    }
+
+    .status-pill.offline {
+      color: #fecaca;
+      background: rgba(239,68,68,0.16);
+      border-color: rgba(239,68,68,0.34);
+    }
+
+    .detail-row {
+      padding: 13px 0;
+      border-top: 1px solid rgba(255,255,255,0.075);
+    }
+
+    .detail-row span {
+      display: block;
+      color: var(--soft);
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: 0.10em;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    .detail-row strong {
+      display: block;
+      color: #ffffff;
+      font-size: 14px;
+      line-height: 1.45;
+    }
+
+    .device-list {
+      display: grid;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .device-pill {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 11px;
+      border-radius: 14px;
+      background: rgba(255,255,255,0.055);
+      border: 1px solid rgba(255,255,255,0.08);
+      font-size: 13px;
+    }
+
+    .device-pill span {
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .action-stack {
+      display: grid;
+      gap: 10px;
+      margin-top: 18px;
+      padding-top: 18px;
+      border-top: 1px solid rgba(255,255,255,0.075);
+    }
+
+    .action-stack a,
+    .action-stack button {
+      width: 100%;
+    }
+
+    .notes-panel {
+      margin-top: 18px;
+      border-radius: 20px;
+      padding: 18px;
+      background: rgba(243, 223, 173, 0.08);
+      border: 1px solid rgba(243, 223, 173, 0.20);
+    }
+
+    .notes-panel strong {
+      display: block;
+      color: var(--gold);
+      margin-bottom: 8px;
+    }
+
+    .notes-panel p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.55;
+      font-size: 14px;
+    }
+
+    .focus-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-top: 18px;
+    }
+
+    .focus-card {
+      padding: 18px;
+      border-radius: 20px;
+      background: rgba(255,255,255,0.055);
+      border: 1px solid var(--border);
+    }
+
+    .focus-card h3 {
+      margin: 0 0 8px;
+      font-size: 16px;
+    }
+
+    .focus-card p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.5;
+      font-size: 14px;
+    }
+
+    @media (max-width: 1320px) {
+      .module-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .metric-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 1050px) {
+      .shell {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        position: relative;
+        height: auto;
+      }
+
+      .workspace-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .focus-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .main {
+        padding: 20px;
+      }
+
+      .topbar {
+        flex-direction: column;
+      }
+
+      .top-actions {
+        flex-wrap: wrap;
+      }
+
+      .workspace-grid,
+      .metric-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="shell">
+
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">R</div>
+        <div>
+          <div class="brand-title">Romanoti RIV</div>
+          <div class="brand-subtitle">Infrastructure Visualizer</div>
+        </div>
+      </div>
+
+      <nav class="nav">
+        <a href="/dashboard">Operations Hub</a>
+        <a href="/rack-view">Rack View</a>
+        <a href="/multi-rack" class="active">Multi-Rack View</a>
+        <a href="/connectivity-map">Connectivity Map</a>
+        <a href="/connection-details">Connection Details</a>
+        <a href="/smart-hands">Smart Hands</a>
+        <a href="/current-tools">Current Tools</a>
+      </nav>
+
+      <div class="sidebar-spacer"></div>
+
+      <div class="mini-card">
+        <div class="status-row">
+          <span class="status-dot"></span>
+          <div>
+            <strong id="sideSite">DemoDC-01</strong>
+            <span>Protected pilot environment</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="mini-card">
+        <strong>RIV Pilot v1.2</strong>
+        <span>Multi-rack visualization with RU and compact port preview.</span>
+      </div>
+    </aside>
+
+    <main class="main">
+
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Romanoti Infrastructure Visualizer</p>
+          <h1>Multi-Rack View</h1>
+          <p class="lead">
+            Review multiple racks in one clean operational view, verify rack health,
+            RU placement, switch/front-panel ports and open the next focused module.
+          </p>
+        </div>
+
+        <div class="top-actions">
+          <div class="user-pill">
+            <div class="avatar" id="userInitials">MR</div>
+            <div>
+              <strong id="displayName">Mauricio Romero</strong>
+              <span id="displayRole">Romanoti Admin</span>
+            </div>
+          </div>
+
+          <a class="btn" href="/logout">Logout</a>
+        </div>
+      </header>
+
+      <section class="workspace">
+        <p class="eyebrow">Workspace Selection</p>
+
+        <div class="workspace-grid">
+          <div class="field">
+            <label for="companySelect">Company</label>
+            <select id="companySelect"></select>
+          </div>
+
+          <div class="field">
+            <label for="datacenterSelect">Data Center</label>
+            <select id="datacenterSelect"></select>
+          </div>
+
+          <div class="field">
+            <label for="roomSelect">Room / Row</label>
+            <select id="roomSelect"></select>
+          </div>
+
+          <button class="btn-primary" id="loadViewBtn" type="button">
+            Load Multi-Rack View
+          </button>
+        </div>
+      </section>
+
+      <section class="metric-grid">
+        <article class="metric-card">
+          <span>Total Racks</span>
+          <strong id="totalRacksMetric">0</strong>
+        </article>
+
+        <article class="metric-card">
+          <span>Operational</span>
+          <strong id="operationalMetric">0</strong>
+        </article>
+
+        <article class="metric-card">
+          <span>Need Review</span>
+          <strong id="reviewMetric">0</strong>
+        </article>
+
+        <article class="metric-card">
+          <span>Total Devices</span>
+          <strong id="devicesMetric">0</strong>
+        </article>
+      </section>
+
+      <section class="module-layout">
+
+        <section class="panel panel-pad">
+          <div class="datahall-header">
+            <div>
+              <p class="panel-title">Data Hall Visualization</p>
+              <h2 id="viewTitle">DemoDC-01 / Row A</h2>
+              <p id="viewDescription">
+                Select a rack to review details and open focused actions.
+              </p>
+            </div>
+
+            <div class="legend" aria-label="Rack status legend">
+              <span class="legend-pill"><span class="legend-dot"></span>Operational</span>
+              <span class="legend-pill"><span class="legend-dot warning"></span>Review</span>
+              <span class="legend-pill"><span class="legend-dot selected"></span>Selected</span>
+              <span class="legend-pill"><span class="legend-dot port-up"></span>Port Up</span>
+              <span class="legend-pill"><span class="legend-dot port-warning"></span>Port Review</span>
+            </div>
+          </div>
+
+          <div class="datahall-canvas">
+            <p class="datahall-row-label" id="rowLabel">Row A · Pilot Rack Line</p>
+            <div class="rack-row" id="rackRow"></div>
+          </div>
+        </section>
+
+        <aside class="panel panel-pad detail-panel">
+          <p class="panel-title">Selected Rack</p>
+
+          <h2 id="selectedRackTitle">No rack selected</h2>
+          <p class="detail-subtitle" id="selectedRackSubtitle">
+            Select a rack from the multi-rack canvas.
+          </p>
+
+          <div class="status-pill" id="selectedRackStatus">Ready</div>
+
+          <div id="selectedRackDetails"></div>
+
+          <div class="action-stack">
+            <a class="btn-primary" id="openRackView" href="/rack-view">
+              Open Full Rack View
+            </a>
+
+            <a class="btn" id="openConnectivity" href="/connectivity-map">
+              Open Connectivity Map
+            </a>
+
+            <a class="btn" id="openConnectionDetails" href="/connection-details">
+              Connection Details
+            </a>
+
+            <a class="btn-ghost" id="openSmartHands" href="/smart-hands">
+              Prepare Smart Hands
+            </a>
+
+            <a class="btn" href="/dashboard">
+              Back to Operations Hub
+            </a>
+          </div>
+
+          <div class="notes-panel">
+            <strong>Operational Note</strong>
+            <p id="operationalNote">
+              Multi-Rack View gives a compact room-level preview. Full port inspection remains in Rack View.
+            </p>
+          </div>
+        </aside>
+
+      </section>
+
+      <section class="focus-grid">
+        <article class="focus-card">
+          <p class="panel-title">RU Visibility</p>
+          <h3>Mini RU scale</h3>
+          <p>
+            Each rack includes RU markers and every device block shows its RU range.
+            This helps the user visually verify placement before opening the detailed Rack View.
+          </p>
+        </article>
+
+        <article class="focus-card">
+          <p class="panel-title">Port Preview</p>
+          <h3>Compact front panel</h3>
+          <p id="nextActionSummary">
+            Switches, firewalls, servers and storage devices show a compact port preview
+            with operational, warning and offline status indicators.
+          </p>
+        </article>
+
+        <article class="focus-card">
+          <p class="panel-title">Commercial Pilot</p>
+          <h3>Clean but useful</h3>
+          <p>
+            This page gives enough detail for a demo or pilot without turning the multi-rack
+            view into a crowded DCIM screen.
+          </p>
+        </article>
+      </section>
+
+    </main>
+  </div>
+
+  <script>
+    const rivModel = {
+      companies: [
+        {
+          id: "romanoti",
+          name: "RomanoTI-Solutions Inc.",
+          datacenters: [
+            {
+              id: "demodc01",
+              name: "DemoDC-01",
+              rooms: [
+                {
+                  id: "row-a",
+                  name: "Row A - Pilot Rack Line",
+                  description: "Network, compute, storage and expansion racks for the protected RIV pilot environment.",
+                  racks: [
+                    {
+                      id: "R42",
+                      name: "Rack R42",
+                      type: "Network / Compute Rack",
+                      status: "operational",
+                      height: 42,
+                      usedRu: 13,
+                      power: "A/B power normal",
+                      temperature: "22°C",
+                      connectivityPaths: 2,
+                      needsReview: 1,
+                      devices: [
+                        {
+                          name: "CORE-SW-01",
+                          type: "switch",
+                          ruTop: 39,
+                          ruHeight: 2,
+                          ports: buildPorts(24, { 14: "warning", 9: "offline" })
+                        },
+                        {
+                          name: "DIST-SW-01",
+                          type: "switch",
+                          ruTop: 32,
+                          ruHeight: 2,
+                          ports: buildPorts(24, { 17: "offline" })
+                        },
+                        {
+                          name: "FW-01",
+                          type: "security",
+                          ruTop: 27,
+                          ruHeight: 2,
+                          ports: buildPorts(12, { 3: "warning", 9: "offline" })
+                        },
+                        {
+                          name: "SRV-APP-01",
+                          type: "server",
+                          ruTop: 19,
+                          ruHeight: 2,
+                          ports: buildPorts(4, {})
+                        },
+                        {
+                          name: "STORAGE-01",
+                          type: "storage",
+                          ruTop: 15,
+                          ruHeight: 2,
+                          ports: buildPorts(8, { 6: "offline" })
+                        },
+                        {
+                          name: "UPS-01",
+                          type: "power",
+                          ruTop: 9,
+                          ruHeight: 3,
+                          ports: []
+                        }
+                      ],
+                      note: "Primary demo rack. One firewall path is marked for review before Smart Hands dispatch."
+                    },
+                    {
+                      id: "R43",
+                      name: "Rack R43",
+                      type: "Compute Expansion",
+                      status: "operational",
+                      height: 42,
+                      usedRu: 10,
+                      power: "A/B power normal",
+                      temperature: "21°C",
+                      connectivityPaths: 1,
+                      needsReview: 0,
+                      devices: [
+                        {
+                          name: "SRV-WEB-01",
+                          type: "server",
+                          ruTop: 36,
+                          ruHeight: 2,
+                          ports: buildPorts(4, {})
+                        },
+                        {
+                          name: "SRV-DB-01",
+                          type: "server",
+                          ruTop: 31,
+                          ruHeight: 2,
+                          ports: buildPorts(4, { 4: "offline" })
+                        },
+                        {
+                          name: "SRV-APP-02",
+                          type: "server",
+                          ruTop: 26,
+                          ruHeight: 2,
+                          ports: buildPorts(4, {})
+                        },
+                        {
+                          name: "PDU-A",
+                          type: "power",
+                          ruTop: 8,
+                          ruHeight: 1,
+                          ports: []
+                        },
+                        {
+                          name: "PDU-B",
+                          type: "power",
+                          ruTop: 6,
+                          ruHeight: 1,
+                          ports: []
+                        }
+                      ],
+                      note: "Compute expansion rack. No active review flags."
+                    },
+                    {
+                      id: "R44",
+                      name: "Rack R44",
+                      type: "Storage / Backup",
+                      status: "warning",
+                      height: 42,
+                      usedRu: 12,
+                      power: "PDU-B load requires review",
+                      temperature: "23°C",
+                      connectivityPaths: 1,
+                      needsReview: 1,
+                      devices: [
+                        {
+                          name: "BACKUP-01",
+                          type: "storage",
+                          ruTop: 34,
+                          ruHeight: 4,
+                          ports: buildPorts(8, { 3: "warning" })
+                        },
+                        {
+                          name: "STORAGE-02",
+                          type: "storage",
+                          ruTop: 27,
+                          ruHeight: 3,
+                          ports: buildPorts(8, { 7: "offline" })
+                        },
+                        {
+                          name: "TAPE-01",
+                          type: "storage",
+                          ruTop: 18,
+                          ruHeight: 3,
+                          ports: buildPorts(4, {})
+                        },
+                        {
+                          name: "PDU-A",
+                          type: "power",
+                          ruTop: 8,
+                          ruHeight: 1,
+                          ports: []
+                        },
+                        {
+                          name: "PDU-B",
+                          type: "power",
+                          ruTop: 6,
+                          ruHeight: 1,
+                          ports: []
+                        }
+                      ],
+                      note: "Storage rack requires review due to elevated PDU-B load."
+                    },
+                    {
+                      id: "R45",
+                      name: "Rack R45",
+                      type: "Reserved / Future Growth",
+                      status: "operational",
+                      height: 42,
+                      usedRu: 2,
+                      power: "A/B power provisioned",
+                      temperature: "20°C",
+                      connectivityPaths: 0,
+                      needsReview: 0,
+                      devices: [
+                        {
+                          name: "PDU-A",
+                          type: "power",
+                          ruTop: 8,
+                          ruHeight: 1,
+                          ports: []
+                        },
+                        {
+                          name: "PDU-B",
+                          type: "power",
+                          ruTop: 6,
+                          ruHeight: 1,
+                          ports: []
+                        }
+                      ],
+                      note: "Reserved rack prepared for future customer expansion."
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    };
+
+    const $ = (id) => document.getElementById(id);
+
+    let activeCompany = null;
+    let activeDatacenter = null;
+    let activeRoom = null;
+    let selectedRack = null;
+
+    document.addEventListener("DOMContentLoaded", () => {
+      loadSessionInfo();
+      initWorkspace();
+      attachEvents();
+      loadMultiRackView();
+    });
+
+    function initWorkspace() {
+      $("companySelect").innerHTML = rivModel.companies
+        .map((company) => `<option value="${escapeHtml(company.id)}">${escapeHtml(company.name)}</option>`)
+        .join("");
+
+      activeCompany = rivModel.companies[0];
+
+      populateDatacenters();
+      activeDatacenter = activeCompany.datacenters[0];
+      $("datacenterSelect").value = activeDatacenter.id;
+
+      populateRooms();
+      activeRoom = activeDatacenter.rooms[0];
+      $("roomSelect").value = activeRoom.id;
+
+      selectedRack = activeRoom.racks[0];
+    }
+
+    function populateDatacenters() {
+      $("datacenterSelect").innerHTML = activeCompany.datacenters
+        .map((dc) => `<option value="${escapeHtml(dc.id)}">${escapeHtml(dc.name)}</option>`)
+        .join("");
+    }
+
+    function populateRooms() {
+      $("roomSelect").innerHTML = activeDatacenter.rooms
+        .map((room) => `<option value="${escapeHtml(room.id)}">${escapeHtml(room.name)}</option>`)
+        .join("");
+    }
+
+    function attachEvents() {
+      $("companySelect").addEventListener("change", () => {
+        activeCompany = rivModel.companies.find((company) => company.id === $("companySelect").value) || rivModel.companies[0];
+        populateDatacenters();
+        activeDatacenter = activeCompany.datacenters[0];
+        $("datacenterSelect").value = activeDatacenter.id;
+
+        populateRooms();
+        activeRoom = activeDatacenter.rooms[0];
+        $("roomSelect").value = activeRoom.id;
+
+        selectedRack = activeRoom.racks[0];
+        loadMultiRackView();
+      });
+
+      $("datacenterSelect").addEventListener("change", () => {
+        activeDatacenter = activeCompany.datacenters.find((dc) => dc.id === $("datacenterSelect").value) || activeCompany.datacenters[0];
+
+        populateRooms();
+        activeRoom = activeDatacenter.rooms[0];
+        $("roomSelect").value = activeRoom.id;
+
+        selectedRack = activeRoom.racks[0];
+        loadMultiRackView();
+      });
+
+      $("roomSelect").addEventListener("change", () => {
+        activeRoom = activeDatacenter.rooms.find((room) => room.id === $("roomSelect").value) || activeDatacenter.rooms[0];
+        selectedRack = activeRoom.racks[0];
+        loadMultiRackView();
+      });
+
+      $("loadViewBtn").addEventListener("click", loadMultiRackView);
+    }
+
+    function loadMultiRackView() {
+      if (!activeCompany || !activeDatacenter || !activeRoom) {
+        return;
+      }
+
+      saveWorkspace();
+      renderMetrics();
+      renderRackRow();
+      renderSelectedRack();
+      updateActionLinks();
+    }
+
+    function saveWorkspace() {
+      const workspace = {
+        company: activeCompany.name,
+        datacenter: activeDatacenter.name,
+        room: activeRoom.name,
+        rack: selectedRack?.name || ""
+      };
+
+      localStorage.setItem("rivWorkspace", JSON.stringify(workspace));
+      sessionStorage.setItem("rivSelectedRack", JSON.stringify(workspace));
+    }
+
+    function renderMetrics() {
+      const racks = activeRoom.racks;
+      const totalDevices = racks.reduce((sum, rack) => sum + rack.devices.length, 0);
+      const operational = racks.filter((rack) => rack.status === "operational").length;
+      const review = racks.filter((rack) => rack.status === "warning" || rack.needsReview > 0).length;
+
+      $("totalRacksMetric").textContent = racks.length;
+      $("operationalMetric").textContent = operational;
+      $("reviewMetric").textContent = review;
+      $("devicesMetric").textContent = totalDevices;
+
+      $("sideSite").textContent = activeDatacenter.name;
+      $("viewTitle").textContent = `${activeDatacenter.name} / ${activeRoom.name}`;
+      $("viewDescription").textContent = activeRoom.description;
+      $("rowLabel").textContent = activeRoom.name;
+    }
+
+    function renderRackRow() {
+      const row = $("rackRow");
+      row.innerHTML = "";
+
+      activeRoom.racks.forEach((rack) => {
+        const rackCard = document.createElement("article");
+        rackCard.className = `rack-card ${rack.status}`;
+        rackCard.dataset.rackId = rack.id;
+
+        if (selectedRack && rack.id === selectedRack.id) {
+          rackCard.classList.add("selected");
+        }
+
+        rackCard.innerHTML = `
+          <div class="rack-top">
+            <div>
+              <div class="rack-name">${escapeHtml(rack.id)}</div>
+              <div class="rack-type">${escapeHtml(rack.type)}</div>
+            </div>
+            <span class="rack-state ${escapeHtml(rack.status)}">${escapeHtml(statusLabel(rack.status))}</span>
+          </div>
+
+          <div class="mini-rack">
+            ${renderRuMarkers(rack)}
+            ${rack.devices.map((device) => renderMiniDevice(rack, device)).join("")}
+          </div>
+
+          <div class="rack-footer">
+            <div class="rack-stat">
+              <span>Used</span>
+              <strong>${escapeHtml(rack.usedRu)}U</strong>
+            </div>
+            <div class="rack-stat">
+              <span>Paths</span>
+              <strong>${escapeHtml(rack.connectivityPaths)}</strong>
+            </div>
+          </div>
+        `;
+
+        rackCard.addEventListener("click", () => {
+          selectedRack = rack;
+          saveWorkspace();
+          renderRackRow();
+          renderSelectedRack();
+          updateActionLinks();
+        });
+
+        row.appendChild(rackCard);
+      });
+    }
+
+    function renderRuMarkers(rack) {
+      let html = "";
+
+      for (let ru = rack.height; ru >= 1; ru--) {
+        const isMajor = ru === rack.height || ru === 1 || ru % 3 === 0;
+        const top = ((rack.height - ru) / rack.height) * 100;
+
+        html += `<div class="ru-tick ${isMajor ? "major" : ""}" style="top:${top}%;"></div>`;
+
+        if (isMajor) {
+          html += `
+            <div class="ru-marker major" style="top:${top}%;">${String(ru).padStart(2, "0")}</div>
+            <div class="ru-marker right major" style="top:${top}%;">${String(ru).padStart(2, "0")}</div>
+          `;
+        }
+      }
+
+      return html;
+    }
+
+    function renderMiniDevice(rack, device) {
+      const top = ((rack.height - device.ruTop) / rack.height) * 100;
+      const height = Math.max((device.ruHeight / rack.height) * 100, 3.4);
+      const bottomRu = device.ruTop - device.ruHeight + 1;
+      const ruLabel = device.ruHeight === 1 ? `RU${device.ruTop}` : `RU${device.ruTop}-${bottomRu}`;
+
+      return `
+        <div
+          class="mini-device ${escapeHtml(device.type)}"
+          style="top:${top}%;height:${height}%;"
+          title="${escapeHtml(device.name)} / ${escapeHtml(ruLabel)}">
+          <div class="mini-device-label">
+            <strong>${escapeHtml(device.name)}</strong>
+            <span>${escapeHtml(ruLabel)}</span>
+          </div>
+          ${renderMiniPorts(device)}
+        </div>
+      `;
+    }
+
+    function renderMiniPorts(device) {
+      if (!device.ports || device.ports.length === 0) {
+        return "";
+      }
+
+      const portLimit = device.type === "switch" ? 24 : device.type === "security" ? 12 : 8;
+      const cssType = device.type === "switch" ? "switch" : device.type === "security" ? "security" : device.type;
+
+      return `
+        <div class="mini-ports ${escapeHtml(cssType)}" aria-label="${escapeHtml(device.name)} compact ports">
+          ${device.ports.slice(0, portLimit).map((port) => `
+            <span
+              class="mini-port ${escapeHtml(port.status)}"
+              title="${escapeHtml(device.name)} ${escapeHtml(port.name)} - ${escapeHtml(port.status)}">
+            </span>
+          `).join("")}
+        </div>
+      `;
+    }
+
+    function renderSelectedRack() {
+      if (!selectedRack) {
+        $("selectedRackTitle").textContent = "No rack selected";
+        $("selectedRackSubtitle").textContent = "Select a rack from the multi-rack canvas.";
+        $("selectedRackStatus").textContent = "Ready";
+        $("selectedRackStatus").className = "status-pill";
+        $("selectedRackDetails").innerHTML = "";
+        $("operationalNote").textContent = "Select a rack to prepare actions.";
+        return;
+      }
+
+      $("selectedRackTitle").textContent = selectedRack.name;
+      $("selectedRackSubtitle").textContent = selectedRack.type;
+      $("selectedRackStatus").textContent = statusLabel(selectedRack.status);
+      $("selectedRackStatus").className = `status-pill ${selectedRack.status}`;
+
+      $("selectedRackDetails").innerHTML = `
+        <div class="detail-row">
+          <span>Company</span>
+          <strong>${escapeHtml(activeCompany.name)}</strong>
+        </div>
+
+        <div class="detail-row">
+          <span>Data Center / Row</span>
+          <strong>${escapeHtml(activeDatacenter.name)} / ${escapeHtml(activeRoom.name)}</strong>
+        </div>
+
+        <div class="detail-row">
+          <span>Rack Utilization</span>
+          <strong>${escapeHtml(selectedRack.usedRu)}U / ${escapeHtml(selectedRack.height)}U (${Math.round((selectedRack.usedRu / selectedRack.height) * 100)}%)</strong>
+        </div>
+
+        <div class="detail-row">
+          <span>Power</span>
+          <strong>${escapeHtml(selectedRack.power)}</strong>
+        </div>
+
+        <div class="detail-row">
+          <span>Temperature</span>
+          <strong>${escapeHtml(selectedRack.temperature)}</strong>
+        </div>
+
+        <div class="detail-row">
+          <span>Connectivity Paths</span>
+          <strong>${escapeHtml(selectedRack.connectivityPaths)} known paths · ${escapeHtml(selectedRack.needsReview)} need review</strong>
+        </div>
+
+        <div class="detail-row">
+          <span>Devices / RU / Ports</span>
+          <div class="device-list">
+            ${selectedRack.devices.map((device) => `
+              <div class="device-pill">
+                <strong>${escapeHtml(device.name)}</strong>
+                <span>${escapeHtml(formatRuRange(device))} · ${escapeHtml(device.type)} · ${escapeHtml((device.ports || []).length)} ports</span>
+              </div>
+            `).join("")}
+          </div>
+        </div>
+      `;
+
+      $("operationalNote").textContent = selectedRack.note;
+      $("nextActionSummary").innerHTML = `
+        Selected <strong>${escapeHtml(selectedRack.name)}</strong>.
+        The mini rack now shows RU markers and compact port previews.
+        Open Rack View for full-size inspection.
+      `;
+
+      saveSelectedContext();
+    }
+
+    function saveSelectedContext() {
+      if (!selectedRack) {
+        return;
+      }
+
+      const context = {
+        company: activeCompany.name,
+        datacenter: activeDatacenter.name,
+        room: activeRoom.name,
+        rackId: selectedRack.id,
+        rackName: selectedRack.name,
+        rackType: selectedRack.type,
+        rackStatus: selectedRack.status,
+        usedRu: selectedRack.usedRu,
+        height: selectedRack.height,
+        connectivityPaths: selectedRack.connectivityPaths,
+        needsReview: selectedRack.needsReview,
+        note: selectedRack.note
+      };
+
+      sessionStorage.setItem("rivSelectedContext", JSON.stringify(context));
+    }
+
+    function updateActionLinks() {
+      if (!selectedRack) {
+        return;
+      }
+
+      const params = new URLSearchParams({
+        company: activeCompany.name,
+        datacenter: activeDatacenter.name,
+        room: activeRoom.name,
+        rack: selectedRack.name,
+        rackId: selectedRack.id
+      });
+
+      $("openRackView").href = `/rack-view?${params.toString()}`;
+      $("openConnectivity").href = `/connectivity-map?${params.toString()}`;
+      $("openConnectionDetails").href = `/connection-details?${params.toString()}`;
+      $("openSmartHands").href = `/smart-hands?${params.toString()}`;
+    }
+
+    function statusLabel(status) {
+      if (status === "warning") return "Review";
+      if (status === "offline") return "Offline";
+      return "Operational";
+    }
+
+    function formatRuRange(device) {
+      const bottomRu = device.ruTop - device.ruHeight + 1;
+      return device.ruHeight === 1 ? `RU${device.ruTop}` : `RU${device.ruTop}-${bottomRu}`;
+    }
+
+    function buildPorts(count, overrides = {}) {
+      const ports = [];
+
+      for (let index = 1; index <= count; index++) {
+        ports.push({
+          name: `Port ${index}`,
+          status: overrides[index] || "up"
+        });
+      }
+
+      return ports;
+    }
+
+    async function loadSessionInfo() {
+      try {
+        const response = await fetch("/api/session", { credentials: "same-origin" });
+
+        if (!response.ok) {
+          return;
+        }
+
+        const session = await response.json();
+
+        if (session.display_name) {
+          $("displayName").textContent = session.display_name;
+          $("userInitials").textContent = getInitials(session.display_name);
+        }
+
+        if (session.display_role) {
+          $("displayRole").textContent = session.display_role;
+        }
+      } catch {
+        // The module remains usable even if session metadata is unavailable.
+      }
+    }
+
+    function getInitials(name) {
+      return String(name || "")
+        .trim()
+        .split(/\s+/)
+        .slice(0, 2)
+        .map((part) => part.charAt(0).toUpperCase())
+        .join("") || "MR";
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+  </script>
+</body>
+</html>
