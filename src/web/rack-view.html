@@ -1,0 +1,1580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- =======================================================
+       Romanoti RIV - Rack View
+       File: src/web/rack-view.html
+
+       Purpose:
+       Dedicated protected Rack View module.
+
+       Product direction:
+       - Clean separated module.
+       - No dependency on old index.html.
+       - No dependency on old app.js.
+       - Focused rack inspection experience.
+       - Prepares RIV for commercial pilot demos.
+       ======================================================= -->
+
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>Romanoti RIV - Rack View</title>
+
+  <style>
+    :root {
+      --bg: #071225;
+      --bg-soft: #0d1b31;
+      --panel: rgba(255, 255, 255, 0.065);
+      --panel-strong: rgba(255, 255, 255, 0.095);
+      --border: rgba(255, 255, 255, 0.12);
+      --border-strong: rgba(255, 255, 255, 0.20);
+      --text: #ffffff;
+      --muted: rgba(255, 255, 255, 0.66);
+      --soft: rgba(255, 255, 255, 0.46);
+      --gold: #f3dfad;
+      --blue: #38bdf8;
+      --green: #22c55e;
+      --yellow: #f59e0b;
+      --red: #ef4444;
+      --purple: #a78bfa;
+      --radius: 24px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Arial, Helvetica, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(56, 189, 248, 0.12), transparent 32%),
+        linear-gradient(135deg, #071225 0%, #0d1b31 52%, #050b14 100%);
+    }
+
+    a {
+      color: inherit;
+    }
+
+    button,
+    select {
+      font-family: inherit;
+    }
+
+    .shell {
+      display: grid;
+      grid-template-columns: 280px minmax(0, 1fr);
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      padding: 28px 20px;
+      background: rgba(5, 12, 24, 0.96);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .brand-mark {
+      width: 54px;
+      height: 54px;
+      border-radius: 16px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, #6366f1, #ef4444);
+      font-size: 28px;
+      font-weight: 900;
+      box-shadow: 0 18px 36px rgba(239, 68, 68, 0.25);
+    }
+
+    .brand-title {
+      font-size: 24px;
+      font-weight: 900;
+      letter-spacing: -0.04em;
+      line-height: 1;
+    }
+
+    .brand-subtitle {
+      margin-top: 5px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .nav {
+      display: grid;
+      gap: 8px;
+    }
+
+    .nav a {
+      text-decoration: none;
+      padding: 13px 15px;
+      border-radius: 14px;
+      color: rgba(255, 255, 255, 0.74);
+      font-size: 14px;
+      font-weight: 800;
+    }
+
+    .nav a:hover {
+      background: rgba(255, 255, 255, 0.075);
+      color: #ffffff;
+    }
+
+    .nav a.active {
+      background: rgba(56, 189, 248, 0.16);
+      border: 1px solid rgba(56, 189, 248, 0.30);
+      color: #ffffff;
+    }
+
+    .sidebar-spacer {
+      flex: 1;
+    }
+
+    .mini-card {
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.055);
+      border-radius: 18px;
+      padding: 16px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    .mini-card strong {
+      display: block;
+      color: #ffffff;
+      margin-bottom: 4px;
+    }
+
+    .status-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .status-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 999px;
+      background: var(--green);
+      box-shadow: 0 0 0 5px rgba(34, 197, 94, 0.13);
+    }
+
+    .main {
+      padding: 32px;
+      min-width: 0;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      gap: 24px;
+      align-items: flex-start;
+      margin-bottom: 24px;
+    }
+
+    .eyebrow {
+      margin: 0 0 8px;
+      color: #a9c7ff;
+      font-size: 13px;
+      font-weight: 900;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(36px, 4vw, 56px);
+      line-height: 0.96;
+      letter-spacing: -0.055em;
+    }
+
+    .lead {
+      margin: 12px 0 0;
+      max-width: 840px;
+      color: var(--muted);
+      line-height: 1.55;
+      font-size: 16px;
+    }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-shrink: 0;
+    }
+
+    .user-pill {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 11px 15px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.075);
+      border: 1px solid var(--border);
+    }
+
+    .avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 999px;
+      background: rgba(56, 189, 248, 0.20);
+      display: grid;
+      place-items: center;
+      font-weight: 900;
+    }
+
+    .user-pill strong {
+      display: block;
+      font-size: 14px;
+    }
+
+    .user-pill span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 2px;
+    }
+
+    .btn,
+    .btn-primary,
+    .btn-ghost {
+      min-height: 44px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      padding: 12px 17px;
+      font-weight: 900;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      white-space: nowrap;
+    }
+
+    .btn {
+      color: #ffffff;
+      background: rgba(255, 255, 255, 0.075);
+    }
+
+    .btn-primary {
+      border: none;
+      color: #071225;
+      background: linear-gradient(135deg, #f3dfad, #fbbf24);
+    }
+
+    .btn-ghost {
+      color: var(--gold);
+      background: transparent;
+      border-color: rgba(243, 223, 173, 0.30);
+    }
+
+    .workspace {
+      border-radius: 28px;
+      padding: 22px;
+      margin-bottom: 20px;
+      border: 1px solid var(--border);
+      background:
+        radial-gradient(circle at top right, rgba(56, 189, 248, 0.10), transparent 34%),
+        linear-gradient(145deg, rgba(255,255,255,0.085), rgba(255,255,255,0.045));
+    }
+
+    .workspace-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr auto;
+      gap: 14px;
+      align-items: end;
+    }
+
+    .field {
+      display: grid;
+      gap: 7px;
+    }
+
+    .field label {
+      color: rgba(255,255,255,0.72);
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: 0.10em;
+      text-transform: uppercase;
+    }
+
+    select {
+      width: 100%;
+      min-height: 46px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,0.14);
+      background: rgba(2, 8, 18, 0.88);
+      color: #ffffff;
+      font-weight: 800;
+      outline: none;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 230px minmax(0, 1fr) 390px;
+      gap: 16px;
+    }
+
+    .panel {
+      border-radius: var(--radius);
+      background: linear-gradient(145deg, rgba(255,255,255,0.070), rgba(255,255,255,0.040));
+      border: 1px solid var(--border);
+      box-shadow: 0 18px 55px rgba(0,0,0,0.18);
+    }
+
+    .panel-pad {
+      padding: 20px;
+    }
+
+    .panel-title {
+      margin: 0 0 16px;
+      color: #a9c7ff;
+      font-size: 13px;
+      font-weight: 900;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+    }
+
+    .info-row,
+    .detail-row {
+      padding: 13px 0;
+      border-top: 1px solid rgba(255,255,255,0.075);
+    }
+
+    .info-row span,
+    .detail-row span {
+      display: block;
+      color: var(--soft);
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: 0.10em;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    .info-row strong,
+    .detail-row strong {
+      display: block;
+      color: #ffffff;
+      font-size: 14px;
+      line-height: 1.45;
+    }
+
+    .green {
+      color: #4ade80 !important;
+    }
+
+    .rack-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .rack-header h2 {
+      margin: 0;
+      font-size: 24px;
+      letter-spacing: -0.04em;
+    }
+
+    .zoom-controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .icon-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.075);
+      color: #ffffff;
+      font-weight: 900;
+      cursor: pointer;
+    }
+
+    .rack-canvas {
+      min-height: 720px;
+      max-height: 760px;
+      overflow: auto;
+      border-radius: 18px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background:
+        radial-gradient(circle at center, rgba(56,189,248,0.07), transparent 45%),
+        rgba(2, 8, 18, 0.40);
+      display: flex;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .rack-frame {
+      position: relative;
+      width: 560px;
+      height: 980px;
+      flex: 0 0 auto;
+      border-radius: 12px;
+      border: 4px solid rgba(255,255,255,0.20);
+      background:
+        linear-gradient(90deg, rgba(255,255,255,0.05), transparent 6%, transparent 94%, rgba(255,255,255,0.05)),
+        #0b0f16;
+      box-shadow:
+        inset 0 0 40px rgba(0,0,0,0.8),
+        0 30px 70px rgba(0,0,0,0.35);
+      transform-origin: top center;
+    }
+
+    .rack-label {
+      position: absolute;
+      top: 12px;
+      left: 0;
+      right: 0;
+      text-align: center;
+      font-size: 24px;
+      font-weight: 900;
+      letter-spacing: -0.04em;
+      z-index: 4;
+    }
+
+    .rack-inner {
+      position: absolute;
+      top: 52px;
+      left: 45px;
+      right: 45px;
+      bottom: 28px;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      background:
+        repeating-linear-gradient(
+          to bottom,
+          rgba(255,255,255,0.045) 0,
+          rgba(255,255,255,0.045) 1px,
+          transparent 1px,
+          transparent calc(100% / 42)
+        );
+    }
+
+    .ru {
+      position: absolute;
+      left: 10px;
+      width: 28px;
+      transform: translateY(-50%);
+      color: #c7d2fe;
+      font-size: 12px;
+      text-align: right;
+      z-index: 5;
+    }
+
+    .ru.right {
+      left: auto;
+      right: 10px;
+      text-align: left;
+    }
+
+    .blank {
+      position: absolute;
+      left: 54px;
+      right: 54px;
+      border: 1px dashed rgba(148, 163, 184, 0.18);
+      border-radius: 9px;
+      background: rgba(255,255,255,0.025);
+    }
+
+    .device {
+      position: absolute;
+      left: 54px;
+      right: 54px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.20);
+      background: linear-gradient(135deg, rgba(34,197,94,0.34), rgba(15,23,42,0.92));
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 7px 10px;
+      cursor: pointer;
+      z-index: 10;
+      min-height: 34px;
+    }
+
+    .device:hover,
+    .device.selected {
+      outline: 2px solid rgba(56,189,248,0.85);
+      box-shadow: 0 0 0 5px rgba(56,189,248,0.12);
+    }
+
+    .device.server {
+      background: linear-gradient(135deg, rgba(59,130,246,0.35), rgba(15,23,42,0.94));
+    }
+
+    .device.storage {
+      background: linear-gradient(135deg, rgba(168,85,247,0.35), rgba(15,23,42,0.94));
+    }
+
+    .device.power {
+      background: linear-gradient(135deg, rgba(245,158,11,0.35), rgba(15,23,42,0.94));
+    }
+
+    .device-name {
+      min-width: 135px;
+      line-height: 1.05;
+    }
+
+    .device-name strong {
+      display: block;
+      font-size: 15px;
+      font-weight: 900;
+    }
+
+    .device-name span {
+      color: rgba(255,255,255,0.78);
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .ports {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      justify-content: flex-end;
+      flex: 1;
+    }
+
+    .port {
+      width: 15px;
+      height: 15px;
+      border-radius: 4px;
+      border: 1px solid rgba(255,255,255,0.35);
+      background: #334155;
+      cursor: pointer;
+    }
+
+    .port.up {
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+    }
+
+    .port.warning {
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+    }
+
+    .port.offline {
+      background: #334155;
+    }
+
+    .port.selected {
+      outline: 2px solid #ffffff;
+      outline-offset: 2px;
+    }
+
+    .state {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 8px 13px;
+      font-size: 13px;
+      font-weight: 900;
+      text-transform: capitalize;
+      background: rgba(34,197,94,0.16);
+      color: #86efac;
+      border: 1px solid rgba(34,197,94,0.28);
+    }
+
+    .state.warning {
+      background: rgba(245,158,11,0.16);
+      color: #fde68a;
+      border-color: rgba(245,158,11,0.35);
+    }
+
+    .port-map {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .action-strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid rgba(255,255,255,0.075);
+    }
+
+    .focus-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-top: 18px;
+    }
+
+    .focus-card {
+      padding: 18px;
+      border-radius: 20px;
+      background: rgba(255,255,255,0.055);
+      border: 1px solid var(--border);
+    }
+
+    .focus-card h3 {
+      margin: 0 0 8px;
+      font-size: 16px;
+    }
+
+    .focus-card p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.5;
+      font-size: 14px;
+    }
+
+    @media (max-width: 1250px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .workspace-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .focus-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 820px) {
+      .shell {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        position: relative;
+        height: auto;
+      }
+
+      .topbar {
+        flex-direction: column;
+      }
+
+      .workspace-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="shell">
+
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">R</div>
+        <div>
+          <div class="brand-title">Romanoti RIV</div>
+          <div class="brand-subtitle">Infrastructure Visualizer</div>
+        </div>
+      </div>
+
+      <nav class="nav">
+        <a href="/dashboard">Operations Hub</a>
+        <a href="/rack-view" class="active">Rack View</a>
+        <a href="/multi-rack">Multi-Rack View</a>
+        <a href="/connectivity-map">Connectivity Map</a>
+        <a href="/connection-details">Connection Details</a>
+        <a href="/smart-hands">Smart Hands</a>
+        <a href="/current-tools">Current Tools</a>
+      </nav>
+
+      <div class="sidebar-spacer"></div>
+
+      <div class="mini-card">
+        <div class="status-row">
+          <span class="status-dot"></span>
+          <div>
+            <strong id="sideSite">DemoDC-01</strong>
+            <span>Protected pilot environment</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="mini-card">
+        <strong>RIV Pilot v1.2</strong>
+        <span>Focused Rack View module ready for commercial pilot evolution.</span>
+      </div>
+    </aside>
+
+    <main class="main">
+
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Romanoti Infrastructure Visualizer</p>
+          <h1>Rack View</h1>
+          <p class="lead">
+            Inspect a selected rack, verify RU placement, review devices, validate ports,
+            and open the next operational action without overloading the main dashboard.
+          </p>
+        </div>
+
+        <div class="top-actions">
+          <div class="user-pill">
+            <div class="avatar" id="userInitials">MR</div>
+            <div>
+              <strong id="displayName">Mauricio Romero</strong>
+              <span id="displayRole">Romanoti Admin</span>
+            </div>
+          </div>
+
+          <a class="btn" href="/logout">Logout</a>
+        </div>
+      </header>
+
+      <section class="workspace">
+        <p class="eyebrow">Workspace Selection</p>
+
+        <div class="workspace-grid">
+          <div class="field">
+            <label for="companySelect">Company</label>
+            <select id="companySelect"></select>
+          </div>
+
+          <div class="field">
+            <label for="datacenterSelect">Data Center</label>
+            <select id="datacenterSelect"></select>
+          </div>
+
+          <div class="field">
+            <label for="rackSelect">Rack</label>
+            <select id="rackSelect"></select>
+          </div>
+
+          <button class="btn-primary" id="loadRackBtn" type="button">
+            Load Rack View
+          </button>
+        </div>
+      </section>
+
+      <section class="layout">
+
+        <aside class="panel panel-pad">
+          <p class="panel-title">Rack Information</p>
+          <h2 id="rackTitle">Rack R42</h2>
+
+          <div class="info-row">
+            <span>Company</span>
+            <strong id="companyMetric">RomanoTI-Solutions Inc.</strong>
+          </div>
+
+          <div class="info-row">
+            <span>Data Center</span>
+            <strong id="datacenterMetric">DemoDC-01</strong>
+          </div>
+
+          <div class="info-row">
+            <span>Rack Height</span>
+            <strong id="heightMetric">42U</strong>
+          </div>
+
+          <div class="info-row">
+            <span>Utilization</span>
+            <strong id="utilizationMetric">0U / 42U</strong>
+          </div>
+
+          <div class="info-row">
+            <span>Power Status</span>
+            <strong class="green" id="powerMetric">Normal</strong>
+          </div>
+        </aside>
+
+        <section class="panel panel-pad">
+          <div class="rack-header">
+            <div>
+              <p class="panel-title">Physical Rack View</p>
+              <h2 id="rackViewTitle">DemoDC-01 / Rack R42</h2>
+            </div>
+
+            <div class="zoom-controls">
+              <span>Zoom</span>
+              <button class="icon-btn" id="zoomOutBtn" type="button">−</button>
+              <span id="zoomLabel">100%</span>
+              <button class="icon-btn" id="zoomInBtn" type="button">+</button>
+              <button class="btn" id="fitRackBtn" type="button">Fit Rack</button>
+            </div>
+          </div>
+
+          <div class="rack-canvas" id="rackCanvas"></div>
+        </section>
+
+        <aside class="panel panel-pad">
+          <p class="panel-title" id="detailType">Selected Device</p>
+
+          <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;">
+            <h2 id="detailTitle">No device selected</h2>
+            <span class="state" id="detailState">ready</span>
+          </div>
+
+          <div id="detailBody"></div>
+
+          <div class="action-strip">
+            <a class="btn-primary" id="openConnectivity" href="/connectivity-map">
+              Open Connectivity Map
+            </a>
+
+            <a class="btn" id="openConnectionDetails" href="/connection-details">
+              Connection Details
+            </a>
+
+            <a class="btn-ghost" id="openSmartHands" href="/smart-hands">
+              Prepare Smart Hands
+            </a>
+
+            <a class="btn" href="/dashboard">
+              Back to Hub
+            </a>
+          </div>
+        </aside>
+
+      </section>
+
+      <section class="focus-grid">
+        <article class="focus-card">
+          <p class="panel-title">Port Intelligence</p>
+          <h3>Selected Port</h3>
+          <p id="selectedPortSummary">No individual port selected.</p>
+        </article>
+
+        <article class="focus-card">
+          <p class="panel-title">Connection Path</p>
+          <h3>Route / Label</h3>
+          <p id="connectionSummary">Select a device or port to prepare connection context.</p>
+        </article>
+
+        <article class="focus-card">
+          <p class="panel-title">Smart Hands</p>
+          <h3>Task Preparation</h3>
+          <p id="smartHandsSummary">Select equipment to prepare field instructions.</p>
+        </article>
+      </section>
+
+    </main>
+  </div>
+
+  <script>
+    /* =======================================================
+       Demo data.
+       Later this must come from backend/API/database.
+       ======================================================= */
+
+    const rivModel = {
+      companies: [
+        {
+          id: "romanoti",
+          name: "RomanoTI-Solutions Inc.",
+          datacenters: [
+            {
+              id: "demodc01",
+              name: "DemoDC-01",
+              location: "Protected pilot environment",
+              racks: [
+                {
+                  id: "R42",
+                  name: "Rack R42",
+                  type: "Network / Compute Rack",
+                  height: 42,
+                  powerStatus: "Normal",
+                  devices: [
+                    {
+                      id: "core-sw-01",
+                      name: "CORE-SW-01",
+                      label: "Core Switch",
+                      model: "Cisco Catalyst 9300-24T",
+                      type: "switch",
+                      ruTop: 39,
+                      ruHeight: 2,
+                      ip: "10.10.10.1",
+                      mac: "00:1A:2B:3C:4D:5E",
+                      status: "operational",
+                      power: "PSU-A → PDU-A / PSU-B → PDU-B",
+                      ports: buildPorts("Eth", 26, {
+                        5: {
+                          status: "up",
+                          speed: "1 Gbps",
+                          vlan: "10",
+                          connectedDevice: "DIST-SW-01",
+                          connectedPort: "Gi1/0/5",
+                          description: "Uplink to distribution switch",
+                          cable: "Cat6A Copper",
+                          length: "3m",
+                          transceiver: "RJ45"
+                        },
+                        14: {
+                          status: "warning",
+                          speed: "1 Gbps",
+                          vlan: "20",
+                          connectedDevice: "FW-01",
+                          connectedPort: "Port 3",
+                          description: "Firewall handoff, recent flap detected",
+                          cable: "Cat6A Copper",
+                          length: "2m",
+                          transceiver: "RJ45"
+                        }
+                      })
+                    },
+                    {
+                      id: "dist-sw-01",
+                      name: "DIST-SW-01",
+                      label: "Distribution Switch",
+                      model: "Cisco Catalyst 9200-24P",
+                      type: "switch",
+                      ruTop: 32,
+                      ruHeight: 2,
+                      ip: "10.10.20.1",
+                      mac: "00:1A:2B:3C:4D:61",
+                      status: "operational",
+                      power: "PSU-A → PDU-A",
+                      ports: buildPorts("Gi1/0/", 24, {
+                        5: {
+                          status: "up",
+                          speed: "1 Gbps",
+                          vlan: "10",
+                          connectedDevice: "CORE-SW-01",
+                          connectedPort: "Eth5",
+                          description: "Uplink to core switch",
+                          cable: "Cat6A Copper",
+                          length: "3m",
+                          transceiver: "RJ45"
+                        }
+                      })
+                    },
+                    {
+                      id: "fw-01",
+                      name: "FW-01",
+                      label: "Firewall",
+                      model: "FortiGate 100F",
+                      type: "switch",
+                      ruTop: 27,
+                      ruHeight: 2,
+                      ip: "10.10.30.1",
+                      mac: "00:1A:2B:3C:4D:80",
+                      status: "operational",
+                      power: "PSU-A → PDU-A",
+                      ports: buildPorts("Port ", 12, {
+                        3: {
+                          status: "warning",
+                          speed: "1 Gbps",
+                          vlan: "WAN",
+                          connectedDevice: "CORE-SW-01",
+                          connectedPort: "Eth14",
+                          description: "Firewall handoff from core",
+                          cable: "Cat6A Copper",
+                          length: "2m",
+                          transceiver: "RJ45"
+                        }
+                      })
+                    },
+                    {
+                      id: "srv-app-01",
+                      name: "SRV-APP-01",
+                      label: "Application Server",
+                      model: "Dell PowerEdge R650",
+                      type: "server",
+                      ruTop: 19,
+                      ruHeight: 2,
+                      ip: "10.10.40.21",
+                      mac: "00:1A:2B:3C:4D:A1",
+                      status: "operational",
+                      power: "PSU-A → PDU-A / PSU-B → PDU-B",
+                      ports: buildPorts("NIC", 4, {
+                        1: {
+                          status: "up",
+                          speed: "10 Gbps",
+                          vlan: "120",
+                          connectedDevice: "DIST-SW-01",
+                          connectedPort: "Gi1/0/12",
+                          description: "Primary server uplink",
+                          cable: "LC-LC MM Fiber",
+                          length: "15m",
+                          transceiver: "SFP+ SR"
+                        }
+                      })
+                    },
+                    {
+                      id: "storage-01",
+                      name: "STORAGE-01",
+                      label: "Storage Array",
+                      model: "Dell PowerVault ME4024",
+                      type: "storage",
+                      ruTop: 15,
+                      ruHeight: 2,
+                      ip: "10.10.50.10",
+                      mac: "00:1A:2B:3C:4D:C1",
+                      status: "operational",
+                      power: "PSU-A → PDU-A / PSU-B → PDU-B",
+                      ports: buildPorts("iSCSI", 8, {
+                        1: {
+                          status: "up",
+                          speed: "10 Gbps",
+                          vlan: "150",
+                          connectedDevice: "DIST-SW-01",
+                          connectedPort: "Gi1/0/20",
+                          description: "Storage path A",
+                          cable: "LC-LC MM Fiber",
+                          length: "10m",
+                          transceiver: "SFP+ SR"
+                        }
+                      })
+                    },
+                    {
+                      id: "ups-01",
+                      name: "UPS-01",
+                      label: "Rack UPS",
+                      model: "APC Smart-UPS 3000",
+                      type: "power",
+                      ruTop: 9,
+                      ruHeight: 3,
+                      ip: "10.10.60.5",
+                      mac: "00:1A:2B:3C:4D:E1",
+                      status: "operational",
+                      power: "Input A/B monitored",
+                      ports: buildPorts("Outlet ", 8, {})
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    };
+
+    /* =======================================================
+       State
+       ======================================================= */
+
+    let activeCompany = null;
+    let activeDatacenter = null;
+    let activeRack = null;
+    let selectedDeviceId = null;
+    let selectedPortKey = null;
+    let zoom = 1;
+
+    const $ = (id) => document.getElementById(id);
+
+    document.addEventListener("DOMContentLoaded", () => {
+      loadSessionInfo();
+      initWorkspace();
+      attachEvents();
+      loadSelectedRack();
+    });
+
+    function initWorkspace() {
+      $("companySelect").innerHTML = rivModel.companies
+        .map((company) => `<option value="${company.id}">${company.name}</option>`)
+        .join("");
+
+      activeCompany = rivModel.companies[0];
+      populateDatacenters();
+      activeDatacenter = activeCompany.datacenters[0];
+      $("datacenterSelect").value = activeDatacenter.id;
+
+      populateRacks();
+      activeRack = activeDatacenter.racks[0];
+      $("rackSelect").value = activeRack.id;
+    }
+
+    function populateDatacenters() {
+      $("datacenterSelect").innerHTML = activeCompany.datacenters
+        .map((dc) => `<option value="${dc.id}">${dc.name}</option>`)
+        .join("");
+    }
+
+    function populateRacks() {
+      $("rackSelect").innerHTML = activeDatacenter.racks
+        .map((rack) => `<option value="${rack.id}">${rack.name} - ${rack.type}</option>`)
+        .join("");
+    }
+
+    function attachEvents() {
+      $("companySelect").addEventListener("change", () => {
+        activeCompany = rivModel.companies.find((c) => c.id === $("companySelect").value);
+        populateDatacenters();
+        activeDatacenter = activeCompany.datacenters[0];
+        $("datacenterSelect").value = activeDatacenter.id;
+        populateRacks();
+        activeRack = activeDatacenter.racks[0];
+        $("rackSelect").value = activeRack.id;
+        loadSelectedRack();
+      });
+
+      $("datacenterSelect").addEventListener("change", () => {
+        activeDatacenter = activeCompany.datacenters.find((dc) => dc.id === $("datacenterSelect").value);
+        populateRacks();
+        activeRack = activeDatacenter.racks[0];
+        $("rackSelect").value = activeRack.id;
+        loadSelectedRack();
+      });
+
+      $("rackSelect").addEventListener("change", () => {
+        activeRack = activeDatacenter.racks.find((rack) => rack.id === $("rackSelect").value);
+        loadSelectedRack();
+      });
+
+      $("loadRackBtn").addEventListener("click", loadSelectedRack);
+
+      $("zoomInBtn").addEventListener("click", () => setZoom(zoom + 0.15));
+      $("zoomOutBtn").addEventListener("click", () => setZoom(zoom - 0.15));
+      $("fitRackBtn").addEventListener("click", () => setZoom(1));
+    }
+
+    function loadSelectedRack() {
+      if (!activeRack) return;
+
+      selectedDeviceId = activeRack.devices[0]?.id || null;
+      selectedPortKey = null;
+
+      renderRack();
+      updateRackMetrics();
+      updateDetail();
+      saveContext();
+    }
+
+    function renderRack() {
+      const canvas = $("rackCanvas");
+      canvas.innerHTML = "";
+
+      const frame = document.createElement("div");
+      frame.className = "rack-frame";
+      frame.style.transform = `scale(${zoom})`;
+
+      frame.innerHTML = `
+        <div class="rack-label">${escapeHtml(activeRack.id)}</div>
+        <div class="rack-inner" id="rackInner"></div>
+      `;
+
+      canvas.appendChild(frame);
+
+      const inner = frame.querySelector("#rackInner");
+
+      renderRuNumbers(inner);
+      renderBlankSpaces(inner);
+      renderDevices(inner);
+
+      $("rackViewTitle").textContent = `${activeDatacenter.name} / ${activeRack.name}`;
+    }
+
+    function renderRuNumbers(inner) {
+      for (let ru = activeRack.height; ru >= 1; ru--) {
+        const top = ((activeRack.height - ru) / activeRack.height) * 100;
+
+        const left = document.createElement("div");
+        left.className = "ru";
+        left.style.top = `${top}%`;
+        left.textContent = String(ru).padStart(2, "0");
+        inner.appendChild(left);
+
+        const right = document.createElement("div");
+        right.className = "ru right";
+        right.style.top = `${top}%`;
+        right.textContent = String(ru).padStart(2, "0");
+        inner.appendChild(right);
+      }
+    }
+
+    function renderBlankSpaces(inner) {
+      const used = new Set();
+
+      activeRack.devices.forEach((device) => {
+        for (let ru = device.ruTop; ru > device.ruTop - device.ruHeight; ru--) {
+          used.add(ru);
+        }
+      });
+
+      let start = null;
+      let count = 0;
+
+      for (let ru = activeRack.height; ru >= 1; ru--) {
+        if (!used.has(ru)) {
+          if (start === null) start = ru;
+          count++;
+        } else {
+          if (count >= 3) createBlank(inner, start, count);
+          start = null;
+          count = 0;
+        }
+      }
+
+      if (count >= 3) createBlank(inner, start, count);
+    }
+
+    function createBlank(inner, startRu, ruCount) {
+      const blank = document.createElement("div");
+      blank.className = "blank";
+      blank.style.top = `${((activeRack.height - startRu) / activeRack.height) * 100}%`;
+      blank.style.height = `${(ruCount / activeRack.height) * 100}%`;
+      inner.appendChild(blank);
+    }
+
+    function renderDevices(inner) {
+      activeRack.devices.forEach((device) => {
+        const block = document.createElement("div");
+        block.className = `device ${device.type}`;
+        block.dataset.deviceId = device.id;
+        block.style.top = `${((activeRack.height - device.ruTop) / activeRack.height) * 100}%`;
+        block.style.height = `${(device.ruHeight / activeRack.height) * 100}%`;
+
+        if (device.id === selectedDeviceId && !selectedPortKey) {
+          block.classList.add("selected");
+        }
+
+        block.innerHTML = `
+          <div class="device-name">
+            <strong>${escapeHtml(device.name)}</strong>
+            <span>RU${escapeHtml(device.ruTop)} • ${escapeHtml(device.label)}</span>
+          </div>
+          <div class="ports"></div>
+        `;
+
+        const portFace = block.querySelector(".ports");
+
+        device.ports.slice(0, visiblePortCount(device)).forEach((port) => {
+          const portBtn = document.createElement("button");
+          portBtn.type = "button";
+          portBtn.className = `port ${port.status}`;
+          portBtn.dataset.deviceId = device.id;
+          portBtn.dataset.portKey = port.key;
+          portBtn.title = `${device.name} ${port.name} - ${port.status}`;
+
+          if (device.id === selectedDeviceId && selectedPortKey === port.key) {
+            portBtn.classList.add("selected");
+          }
+
+          portBtn.addEventListener("click", (event) => {
+            event.stopPropagation();
+            selectedDeviceId = device.id;
+            selectedPortKey = port.key;
+            refreshSelection();
+          });
+
+          portFace.appendChild(portBtn);
+        });
+
+        block.addEventListener("click", () => {
+          selectedDeviceId = device.id;
+          selectedPortKey = null;
+          refreshSelection();
+        });
+
+        inner.appendChild(block);
+      });
+    }
+
+    function refreshSelection() {
+      renderRack();
+      updateDetail();
+      saveContext();
+    }
+
+    function updateRackMetrics() {
+      const usedRu = activeRack.devices.reduce((total, device) => total + device.ruHeight, 0);
+
+      $("rackTitle").textContent = activeRack.name;
+      $("companyMetric").textContent = activeCompany.name;
+      $("datacenterMetric").textContent = activeDatacenter.name;
+      $("heightMetric").textContent = `${activeRack.height}U`;
+      $("utilizationMetric").textContent =
+        `${usedRu}U / ${activeRack.height}U (${Math.round((usedRu / activeRack.height) * 100)}%)`;
+      $("powerMetric").textContent = activeRack.powerStatus || "Normal";
+      $("sideSite").textContent = activeDatacenter.name;
+    }
+
+    function updateDetail() {
+      const device = getSelectedDevice();
+      const port = getSelectedPort();
+
+      if (!device) {
+        $("detailTitle").textContent = "No device selected";
+        $("detailState").textContent = "ready";
+        $("detailBody").innerHTML = "";
+        return;
+      }
+
+      if (port) {
+        updatePortDetail(device, port);
+      } else {
+        updateDeviceDetail(device);
+      }
+
+      updateActionLinks(device, port);
+    }
+
+    function updateDeviceDetail(device) {
+      $("detailType").textContent = "Selected Device";
+      $("detailTitle").textContent = device.name;
+      $("detailState").textContent = device.status;
+      $("detailState").className = "state";
+
+      $("detailBody").innerHTML = `
+        <div class="detail-row">
+          <span>Device Label</span>
+          <strong>${escapeHtml(device.label)}</strong>
+        </div>
+        <div class="detail-row">
+          <span>Model</span>
+          <strong>${escapeHtml(device.model)}</strong>
+        </div>
+        <div class="detail-row">
+          <span>Rack Position</span>
+          <strong>${escapeHtml(activeRack.name)} • RU${escapeHtml(device.ruTop)}</strong>
+        </div>
+        <div class="detail-row">
+          <span>IP / MAC</span>
+          <strong>${escapeHtml(device.ip)} / ${escapeHtml(device.mac)}</strong>
+        </div>
+        <div class="detail-row">
+          <span>Power</span>
+          <strong>${escapeHtml(device.power)}</strong>
+        </div>
+        <div class="detail-row">
+          <span>Ports</span>
+          <div class="port-map">
+            ${device.ports.slice(0, 26).map((port) => `
+              <button
+                type="button"
+                class="port ${escapeHtml(port.status)}"
+                title="${escapeHtml(port.name)} - ${escapeHtml(port.status)}"
+                onclick="selectPortFromDetail('${escapeHtml(device.id)}','${escapeHtml(port.key)}')">
+              </button>
+            `).join("")}
+          </div>
+        </div>
+      `;
+
+      $("selectedPortSummary").textContent = "No individual port selected.";
+
+      $("connectionSummary").innerHTML = `
+        <strong>${escapeHtml(device.name)}</strong><br>
+        Label: ${escapeHtml(device.label)}<br>
+        Rack: ${escapeHtml(activeRack.name)} / RU${escapeHtml(device.ruTop)}
+      `;
+
+      $("smartHandsSummary").innerHTML = `
+        Locate <strong>${escapeHtml(device.name)}</strong> in
+        <strong>${escapeHtml(activeRack.name)}</strong> at
+        <strong>RU${escapeHtml(device.ruTop)}</strong>.
+        Confirm label, power state and operational LEDs before starting work.
+      `;
+    }
+
+    function updatePortDetail(device, port) {
+      $("detailType").textContent = "Selected Port";
+      $("detailTitle").textContent = `${device.name} / ${port.name}`;
+      $("detailState").textContent = port.status;
+      $("detailState").className = `state ${port.status === "warning" ? "warning" : ""}`;
+
+      $("detailBody").innerHTML = `
+        <div class="detail-row">
+          <span>Status</span>
+          <strong>${escapeHtml(port.status)}</strong>
+        </div>
+        <div class="detail-row">
+          <span>Speed</span>
+          <strong>${escapeHtml(port.speed)}</strong>
+        </div>
+        <div class="detail-row">
+          <span>VLAN</span>
+          <strong>${escapeHtml(port.vlan)}</strong>
+        </div>
+        <div class="detail-row">
+          <span>Connected Device</span>
+          <strong>${escapeHtml(port.connectedDevice || "Not connected")}</strong>
+        </div>
+        <div class="detail-row">
+          <span>Connected Port</span>
+          <strong>${escapeHtml(port.connectedPort || "N/A")}</strong>
+        </div>
+        <div class="detail-row">
+          <span>Cable / Length</span>
+          <strong>${escapeHtml(port.cable)} • ${escapeHtml(port.length)}</strong>
+        </div>
+        <div class="detail-row">
+          <span>Transceiver</span>
+          <strong>${escapeHtml(port.transceiver)}</strong>
+        </div>
+        <div class="detail-row">
+          <span>Description</span>
+          <strong>${escapeHtml(port.description)}</strong>
+        </div>
+      `;
+
+      $("selectedPortSummary").innerHTML = `
+        <strong>${escapeHtml(device.name)} ${escapeHtml(port.name)}</strong><br>
+        Status: ${escapeHtml(port.status)}<br>
+        Speed: ${escapeHtml(port.speed)}<br>
+        VLAN: ${escapeHtml(port.vlan)}
+      `;
+
+      $("connectionSummary").innerHTML = `
+        <strong>Route</strong><br>
+        ${escapeHtml(device.name)} ${escapeHtml(port.name)}
+        ${port.connectedDevice ? `→ ${escapeHtml(port.connectedDevice)} ${escapeHtml(port.connectedPort)}` : "→ No endpoint recorded"}<br>
+        Label: ${escapeHtml(device.name)}-${escapeHtml(port.name)}-${escapeHtml(port.connectedDevice || "OPEN")}
+      `;
+
+      $("smartHandsSummary").innerHTML = `
+        Prepare <strong>${escapeHtml(port.cable)}</strong> (${escapeHtml(port.length)})
+        and <strong>${escapeHtml(port.transceiver)}</strong>.
+        Validate link status on <strong>${escapeHtml(device.name)} ${escapeHtml(port.name)}</strong>
+        ${port.connectedDevice ? `and destination <strong>${escapeHtml(port.connectedDevice)} ${escapeHtml(port.connectedPort)}</strong>.` : "."}
+      `;
+    }
+
+    function updateActionLinks(device, port) {
+      const params = new URLSearchParams({
+        company: activeCompany.name,
+        datacenter: activeDatacenter.name,
+        rack: activeRack.name,
+        device: device?.name || "",
+        port: port?.name || ""
+      });
+
+      $("openConnectivity").href = `/connectivity-map?${params.toString()}`;
+      $("openConnectionDetails").href = `/connection-details?${params.toString()}`;
+      $("openSmartHands").href = `/smart-hands?${params.toString()}`;
+    }
+
+    function saveContext() {
+      const device = getSelectedDevice();
+      const port = getSelectedPort();
+
+      const context = {
+        company: activeCompany?.name || "",
+        datacenter: activeDatacenter?.name || "",
+        rack: activeRack?.name || "",
+        deviceId: device?.id || "",
+        deviceName: device?.name || "",
+        deviceLabel: device?.label || "",
+        deviceRu: device?.ruTop || "",
+        portKey: port?.key || "",
+        portName: port?.name || "",
+        portStatus: port?.status || "",
+        connectedDevice: port?.connectedDevice || "",
+        connectedPort: port?.connectedPort || "",
+        cable: port?.cable || "",
+        length: port?.length || "",
+        vlan: port?.vlan || "",
+        speed: port?.speed || ""
+      };
+
+      sessionStorage.setItem("rivSelectedContext", JSON.stringify(context));
+    }
+
+    function selectPortFromDetail(deviceId, portKey) {
+      selectedDeviceId = deviceId;
+      selectedPortKey = portKey;
+      refreshSelection();
+    }
+
+    function getSelectedDevice() {
+      return activeRack?.devices.find((device) => device.id === selectedDeviceId) || null;
+    }
+
+    function getSelectedPort() {
+      const device = getSelectedDevice();
+      return device?.ports.find((port) => port.key === selectedPortKey) || null;
+    }
+
+    function visiblePortCount(device) {
+      if (device.type === "server") return 4;
+      if (device.type === "storage") return 8;
+      if (device.type === "power") return 8;
+      return Math.min(device.ports.length, 26);
+    }
+
+    function setZoom(value) {
+      zoom = Math.min(1.45, Math.max(0.75, value));
+      $("zoomLabel").textContent = `${Math.round(zoom * 100)}%`;
+      renderRack();
+    }
+
+    function buildPorts(prefix, count, overrides = {}) {
+      const ports = [];
+
+      for (let index = 1; index <= count; index++) {
+        const custom = overrides[index] || {};
+
+        ports.push({
+          key: String(index),
+          name: `${prefix}${index}`,
+          status: custom.status || (index % 9 === 0 ? "offline" : "up"),
+          speed: custom.speed || "1 Gbps",
+          vlan: custom.vlan || "Access",
+          connectedDevice: custom.connectedDevice || "",
+          connectedPort: custom.connectedPort || "",
+          description: custom.description || "Available operational port",
+          cable: custom.cable || "Cat6A Copper",
+          length: custom.length || "3m",
+          transceiver: custom.transceiver || "RJ45"
+        });
+      }
+
+      return ports;
+    }
+
+    async function loadSessionInfo() {
+      try {
+        const response = await fetch("/api/session", { credentials: "same-origin" });
+
+        if (!response.ok) return;
+
+        const session = await response.json();
+
+        if (session.display_name) {
+          $("displayName").textContent = session.display_name;
+          $("userInitials").textContent = getInitials(session.display_name);
+        }
+
+        if (session.display_role) {
+          $("displayRole").textContent = session.display_role;
+        }
+      } catch {
+        // The module remains usable even if session metadata is unavailable.
+      }
+    }
+
+    function getInitials(name) {
+      return name
+        .trim()
+        .split(/\s+/)
+        .slice(0, 2)
+        .map((part) => part.charAt(0).toUpperCase())
+        .join("") || "MR";
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+  </script>
+</body>
+</html>
