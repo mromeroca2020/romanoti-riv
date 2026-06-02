@@ -245,7 +245,57 @@ const rivModel = {
     }
   ]
 };
+/* ==========================================================
+   SECTION 1B - Demo connectivity paths
 
+   Purpose:
+   Defines visual multi-hop paths between devices, panels,
+   MDF points, backbone segments and racks.
+   ========================================================== */
+
+const connectivityPaths = {
+  "core-sw-01:14": {
+    id: "PATH-0001",
+    title: "CORE-SW-01 Eth14 to FW-01 Port 3",
+    status: "warning",
+    source: "CORE-SW-01 Eth14",
+    destination: "FW-01 Port 3",
+    cable: "Cat6A Copper",
+    length: "2m",
+    vlan: "20",
+    speed: "1 Gbps",
+    hops: [
+      { type: "rack", name: "Rack R42", detail: "DemoDC-01 / source rack" },
+      { type: "device", name: "CORE-SW-01", detail: "RU39 / Eth14" },
+      { type: "oh", name: "OH-PANEL-A", detail: "Overhead panel / Port 12" },
+      { type: "mdf", name: "MDF-A", detail: "Main distribution / Port 21" },
+      { type: "backbone", name: "Backbone-01", detail: "LC-LC MM Fiber / 15m" },
+      { type: "mdf", name: "MDF-B", detail: "Main distribution / Port 21" },
+      { type: "oh", name: "OH-PANEL-B", detail: "Overhead panel / Port 07" },
+      { type: "device", name: "FW-01", detail: "RU27 / Port 3" },
+      { type: "rack", name: "Rack R42", detail: "DemoDC-01 / destination rack" }
+    ]
+  },
+
+  "dist-sw-01:5": {
+    id: "PATH-0002",
+    title: "DIST-SW-01 Gi1/0/5 to CORE-SW-01 Eth5",
+    status: "up",
+    source: "DIST-SW-01 Gi1/0/5",
+    destination: "CORE-SW-01 Eth5",
+    cable: "Cat6A Copper",
+    length: "3m",
+    vlan: "10",
+    speed: "1 Gbps",
+    hops: [
+      { type: "rack", name: "Rack R42", detail: "DemoDC-01 / source rack" },
+      { type: "device", name: "DIST-SW-01", detail: "RU32 / Gi1/0/5" },
+      { type: "patch", name: "In-Rack Patch", detail: "Copper patch / 3m" },
+      { type: "device", name: "CORE-SW-01", detail: "RU39 / Eth5" },
+      { type: "rack", name: "Rack R42", detail: "DemoDC-01 / destination rack" }
+    ]
+  }
+};
 
 /* ==========================================================
    SECTION 2 - DOM references for new RIV UI
@@ -274,7 +324,16 @@ const detailBody = document.getElementById("detailBody");
 const selectedPortSummary = document.getElementById("selectedPortSummary");
 const connectionSummary = document.getElementById("connectionSummary");
 const smartHandsSummary = document.getElementById("smartHandsSummary");
+/* ==========================================================
+   Connectivity Map DOM references
+   ========================================================== */
 
+const connectivityTitle = document.getElementById("connectivityTitle");
+const connectivityCanvas = document.getElementById("connectivityCanvas");
+const connectionDetailTitle = document.getElementById("connectionDetailTitle");
+const connectionDetailBody = document.getElementById("connectionDetailBody");
+const fitConnectivityBtn = document.getElementById("fitConnectivityBtn");
+const resetConnectivityBtn = document.getElementById("resetConnectivityBtn");
 const zoomOutBtn = document.getElementById("zoomOutBtn");
 const zoomInBtn = document.getElementById("zoomInBtn");
 const fitRackBtn = document.getElementById("fitRackBtn");
@@ -287,6 +346,20 @@ let selectedDeviceId = null;
 let selectedPortKey = null;
 let rackZoom = 1;
 
+/*
+  Connectivity Map state
+
+  connectivityZoom:
+  - Reserved for map zoom/fit behavior.
+  - For now we keep the map at 100%, but the variable is ready for future controls.
+
+  selectedConnectivityPathId:
+  - Stores the currently selected visual path in the Connectivity Map.
+  - This allows the map to keep a highlighted route while the user inspects details.
+*/
+let connectivityZoom = 1;
+let selectedConnectivityPathId = null;
+
 
 /* ==========================================================
    SECTION 3 - Initialization
@@ -294,6 +367,16 @@ let rackZoom = 1;
 
 initCompanySelector();
 attachRackEvents();
+
+/*
+  Connectivity Map initialization
+
+  This prepares the visual map area before a rack is loaded.
+  The map will render real demo paths once the user selects:
+  Company → Data Center → Rack.
+*/
+attachConnectivityEvents();
+renderConnectivityEmptyState();
 
 
 function initCompanySelector() {
@@ -384,12 +467,27 @@ function loadSelectedRack() {
     return;
   }
 
+  /*
+    Default selection behavior:
+    - When a rack is loaded, select the first device automatically.
+    - Do not select a port yet.
+    - This keeps the rack view useful immediately without forcing the user
+      to click a device first.
+  */
   selectedDeviceId = activeRack.devices[0]?.id || null;
   selectedPortKey = null;
 
+  /*
+    Render the core RIV views:
+    1. Physical Rack View
+    2. Rack metrics
+    3. Device detail panel
+    4. Connectivity Map
+  */
   renderRack(activeRack);
   updateRackMetrics();
   updateDeviceDetail(getSelectedDevice());
+  renderConnectivityMapForRack(activeRack);
 
   document.getElementById("infrastructure").scrollIntoView({
     behavior: "smooth",
@@ -579,6 +677,19 @@ function refreshRackAndDetails() {
   } else {
     updateDeviceDetail(device);
   }
+
+  /*
+    Keep Connectivity Map synchronized with the Rack View.
+
+    When the user clicks:
+    - a device: the map keeps showing all available paths for the rack.
+    - a port with a documented path: the map highlights that path.
+    - a port without a documented path: the map explains that no route exists yet.
+
+    This is important because RIV should behave like one connected operational tool,
+    not isolated panels.
+  */
+  renderConnectivityMapForRack(activeRack);
 }
 
 
@@ -749,7 +860,1159 @@ function setRackZoom(value) {
   }
 }
 
+/* ==========================================================
+   SECTION 6B - Connectivity Map Renderer
 
+   Purpose:
+   - Render visual connectivity paths for the selected rack.
+   - Show routes between rack, devices, OH panels, MDF points and backbone.
+   - Highlight the path related to the selected port when available.
+   - Display technical path details for future Smart Hands workflows.
+
+   Design principle:
+   - This is still frontend demo data.
+   - Later, connectivityPaths should come from the backend/DCIM database.
+   - For now, this gives RIV a real operational visualization layer.
+   ========================================================== */
+
+
+/*
+  attachConnectivityEvents()
+
+  Connects the Connectivity Map buttons and click delegation.
+  This function is safe: it checks if DOM elements exist before attaching events.
+*/
+function attachConnectivityEvents() {
+  injectConnectivityMapStyles();
+
+  if (fitConnectivityBtn) {
+    fitConnectivityBtn.addEventListener("click", () => {
+      connectivityZoom = 1;
+      renderConnectivityMapForRack(activeRack);
+    });
+  }
+
+  if (resetConnectivityBtn) {
+    resetConnectivityBtn.addEventListener("click", () => {
+      selectedConnectivityPathId = null;
+      renderConnectivityMapForRack(activeRack);
+    });
+  }
+
+  if (connectivityCanvas) {
+    connectivityCanvas.addEventListener("click", (event) => {
+      const hopElement = event.target.closest("[data-connectivity-hop]");
+      const pathElement = event.target.closest("[data-connectivity-path]");
+
+      /*
+        Hop click:
+        Shows details for one specific point in the route,
+        for example MDF-A, OH-PANEL-A or CORE-SW-01.
+      */
+      if (hopElement) {
+        const pathId = hopElement.dataset.connectivityPathId;
+        const hopIndex = Number(hopElement.dataset.connectivityHop);
+        const path = getConnectivityPathsForActiveRack().find((item) => item.id === pathId);
+
+        if (!path || Number.isNaN(hopIndex)) return;
+
+        selectedConnectivityPathId = path.id;
+        renderConnectivityMapForRack(activeRack, path.id);
+        renderConnectivityHopDetail(path, path.hops[hopIndex], hopIndex);
+        return;
+      }
+
+      /*
+        Path click:
+        Shows the full route details and highlights the selected path.
+      */
+      if (pathElement) {
+        const pathId = pathElement.dataset.connectivityPath;
+        const path = getConnectivityPathsForActiveRack().find((item) => item.id === pathId);
+
+        if (!path) return;
+
+        selectedConnectivityPathId = path.id;
+        renderConnectivityMapForRack(activeRack, path.id);
+        renderConnectivityPathDetail(path);
+      }
+    });
+  }
+}
+
+
+/*
+  renderConnectivityEmptyState()
+
+  Displays a clean placeholder before the user loads a rack.
+*/
+function renderConnectivityEmptyState() {
+  if (!connectivityCanvas) return;
+
+  if (connectivityTitle) {
+    connectivityTitle.textContent = "Connectivity Map";
+  }
+
+  connectivityCanvas.innerHTML = `
+    <div class="connectivity-empty-state">
+      <div class="connectivity-empty-icon">RIV</div>
+      <h3>No rack loaded yet</h3>
+      <p>
+        Select a company, data center and rack to generate the visual
+        connectivity map.
+      </p>
+    </div>
+  `;
+
+  if (connectionDetailTitle) {
+    connectionDetailTitle.textContent = "Connection Details";
+  }
+
+  if (connectionDetailBody) {
+    connectionDetailBody.innerHTML = `
+      <p class="connection-muted">
+        No connectivity path selected yet.
+      </p>
+    `;
+  }
+}
+
+
+/*
+  renderConnectivityMapForRack()
+
+  Main renderer for the Connectivity Map.
+
+  Behavior:
+  - If no rack is selected, show empty state.
+  - If a rack is selected, show all known paths for that rack.
+  - If the selected port has a documented path, highlight it.
+  - If the selected port has no documented path, explain that this route
+    still needs to be modeled.
+*/
+function renderConnectivityMapForRack(rack, focusPathId = null) {
+  if (!connectivityCanvas) return;
+
+  injectConnectivityMapStyles();
+
+  if (!rack) {
+    renderConnectivityEmptyState();
+    return;
+  }
+
+  const paths = getConnectivityPathsForActiveRack();
+  const selectedPortPath = getConnectivityPathForSelectedPort();
+
+  /*
+    Determine what path should be highlighted.
+
+    Priority:
+    1. Explicit focus path passed by a click.
+    2. Path matching selected device/port.
+    3. Previous selected path.
+    4. First available path.
+  */
+  let effectivePathId = focusPathId;
+
+  if (!effectivePathId && selectedPortPath) {
+    effectivePathId = selectedPortPath.id;
+  }
+
+  if (!effectivePathId && selectedConnectivityPathId) {
+    const stillExists = paths.some((path) => path.id === selectedConnectivityPathId);
+    effectivePathId = stillExists ? selectedConnectivityPathId : null;
+  }
+
+  if (!effectivePathId && !selectedPortKey && paths.length > 0) {
+    effectivePathId = paths[0].id;
+  }
+
+  selectedConnectivityPathId = effectivePathId;
+
+  if (connectivityTitle) {
+    connectivityTitle.textContent = `${activeDatacenter?.name || "Data Center"} / ${rack.name} Connectivity`;
+  }
+
+  if (paths.length === 0) {
+    connectivityCanvas.innerHTML = `
+      <div class="connectivity-empty-state">
+        <div class="connectivity-empty-icon">MAP</div>
+        <h3>No documented paths for this rack</h3>
+        <p>
+          This rack is loaded, but no MDF/OH/device paths have been modeled yet.
+        </p>
+      </div>
+    `;
+
+    renderConnectivityNoPathDetail();
+    return;
+  }
+
+  const stats = buildConnectivityMapStats(paths);
+
+  connectivityCanvas.innerHTML = `
+    <div class="connectivity-map-shell">
+      <div class="connectivity-map-header">
+        <div>
+          <span class="connectivity-eyebrow">Romanoti RIV · Connectivity Map</span>
+          <h3>${escapeHtml(rack.name)} Route Model</h3>
+          <p>
+            Visual path from devices to rack, overhead panels, MDF points and backbone segments.
+          </p>
+        </div>
+
+        <div class="connectivity-health ${stats.warning > 0 ? "warning" : "healthy"}">
+          ${stats.warning > 0 ? "Review Required" : "Healthy"}
+        </div>
+      </div>
+
+      <div class="connectivity-stats">
+        <div>
+          <strong>${paths.length}</strong>
+          <span>Known Paths</span>
+        </div>
+        <div>
+          <strong>${stats.up}</strong>
+          <span>Operational</span>
+        </div>
+        <div>
+          <strong>${stats.warning}</strong>
+          <span>Need Review</span>
+        </div>
+        <div>
+          <strong>${countUniqueConnectivityHops(paths)}</strong>
+          <span>Map Nodes</span>
+        </div>
+      </div>
+
+      <div class="connectivity-legend">
+        <span><i class="legend-node rack"></i>Rack</span>
+        <span><i class="legend-node device"></i>Device</span>
+        <span><i class="legend-node oh"></i>OH</span>
+        <span><i class="legend-node mdf"></i>MDF</span>
+        <span><i class="legend-node backbone"></i>Backbone</span>
+        <span><i class="legend-status warning"></i>Needs Review</span>
+      </div>
+
+      <div class="connectivity-map-viewport" style="--connectivity-zoom: ${connectivityZoom};">
+        ${paths.map((path) => renderConnectivityPathLane(path, effectivePathId)).join("")}
+      </div>
+    </div>
+  `;
+
+  /*
+    Update detail panel after rendering the map.
+    If the user selected a port without a known path, show a clear message.
+  */
+  if (selectedPortKey && !selectedPortPath) {
+    renderConnectivitySelectedPortWithoutPath();
+    return;
+  }
+
+  const selectedPath = paths.find((path) => path.id === effectivePathId);
+
+  if (selectedPath) {
+    renderConnectivityPathDetail(selectedPath);
+  } else {
+    renderConnectivityDefaultDetail(paths);
+  }
+}
+
+
+/*
+  renderConnectivityPathLane()
+
+  Renders one visual horizontal route.
+
+  Each route is a multi-hop sequence:
+  Rack → Device → OH → MDF → Backbone → MDF → OH → Device → Rack
+*/
+function renderConnectivityPathLane(path, selectedPathId) {
+  const statusClass = getConnectivityStatusClass(path.status);
+  const isSelected = path.id === selectedPathId;
+
+  return `
+    <div
+      class="connectivity-path-lane ${statusClass} ${isSelected ? "selected" : ""}"
+      data-connectivity-path="${escapeHtml(path.id)}"
+      role="button"
+      tabindex="0"
+      title="${escapeHtml(path.title)}"
+    >
+      <div class="connectivity-path-top">
+        <div>
+          <strong>${escapeHtml(path.title)}</strong>
+          <span>${escapeHtml(path.source)} → ${escapeHtml(path.destination)}</span>
+        </div>
+
+        <em class="${statusClass}">
+          ${getConnectivityStatusLabel(path.status)}
+        </em>
+      </div>
+
+      <div class="connectivity-hop-row">
+        ${path.hops.map((hop, index) => renderConnectivityHop(path, hop, index)).join("")}
+      </div>
+
+      <div class="connectivity-path-meta">
+        <span>Cable: <strong>${escapeHtml(path.cable)}</strong></span>
+        <span>Length: <strong>${escapeHtml(path.length)}</strong></span>
+        <span>Speed: <strong>${escapeHtml(path.speed)}</strong></span>
+        <span>VLAN: <strong>${escapeHtml(path.vlan)}</strong></span>
+      </div>
+    </div>
+  `;
+}
+
+
+/*
+  renderConnectivityHop()
+
+  Renders one hop/node in the visual path.
+*/
+function renderConnectivityHop(path, hop, index) {
+  const isLast = index === path.hops.length - 1;
+
+  return `
+    <button
+      type="button"
+      class="connectivity-hop ${escapeHtml(hop.type)}"
+      data-connectivity-path-id="${escapeHtml(path.id)}"
+      data-connectivity-hop="${index}"
+      title="${escapeHtml(hop.name)} - ${escapeHtml(hop.detail)}"
+    >
+      <span>${getConnectivityHopIcon(hop.type)}</span>
+      <strong>${escapeHtml(hop.name)}</strong>
+      <small>${escapeHtml(hop.detail)}</small>
+    </button>
+
+    ${isLast ? "" : `<div class="connectivity-arrow">→</div>`}
+  `;
+}
+
+
+/*
+  renderConnectivityPathDetail()
+
+  Shows technical details for the selected full path.
+*/
+function renderConnectivityPathDetail(path) {
+  if (!connectionDetailTitle || !connectionDetailBody) return;
+
+  const statusClass = getConnectivityStatusClass(path.status);
+
+  connectionDetailTitle.textContent = path.title;
+
+  connectionDetailBody.innerHTML = `
+    <div class="connection-detail-card">
+      <div class="connection-detail-status ${statusClass}">
+        ${getConnectivityStatusLabel(path.status)}
+      </div>
+
+      <div class="detail-row">
+        <span>Path ID</span>
+        <strong>${escapeHtml(path.id)}</strong>
+      </div>
+
+      <div class="detail-row">
+        <span>Source</span>
+        <strong>${escapeHtml(path.source)}</strong>
+      </div>
+
+      <div class="detail-row">
+        <span>Destination</span>
+        <strong>${escapeHtml(path.destination)}</strong>
+      </div>
+
+      <div class="detail-row">
+        <span>Cable / Length</span>
+        <strong>${escapeHtml(path.cable)} • ${escapeHtml(path.length)}</strong>
+      </div>
+
+      <div class="detail-row">
+        <span>Speed / VLAN</span>
+        <strong>${escapeHtml(path.speed)} • VLAN ${escapeHtml(path.vlan)}</strong>
+      </div>
+
+      <div class="connection-route-list">
+        <strong>Route Hops</strong>
+        <ol>
+          ${path.hops.map((hop) => `
+            <li>
+              <span>${escapeHtml(hop.name)}</span>
+              <small>${escapeHtml(hop.detail)}</small>
+            </li>
+          `).join("")}
+        </ol>
+      </div>
+
+      <div class="smart-hands-note">
+        <strong>Smart Hands readiness</strong>
+        <p>
+          ${
+            path.status === "warning"
+              ? "This path must be validated before dispatching a Smart Hands task."
+              : "This path is ready to be converted into guided Smart Hands instructions."
+          }
+        </p>
+      </div>
+    </div>
+  `;
+}
+
+
+/*
+  renderConnectivityHopDetail()
+
+  Shows detail for one selected hop inside a path.
+*/
+function renderConnectivityHopDetail(path, hop, index) {
+  if (!connectionDetailTitle || !connectionDetailBody) return;
+
+  connectionDetailTitle.textContent = `${hop.name} / Hop ${index + 1}`;
+
+  connectionDetailBody.innerHTML = `
+    <div class="connection-detail-card">
+      <div class="connection-detail-status ${getConnectivityStatusClass(path.status)}">
+        ${getConnectivityStatusLabel(path.status)}
+      </div>
+
+      <div class="detail-row">
+        <span>Related Path</span>
+        <strong>${escapeHtml(path.title)}</strong>
+      </div>
+
+      <div class="detail-row">
+        <span>Hop Type</span>
+        <strong>${escapeHtml(hop.type.toUpperCase())}</strong>
+      </div>
+
+      <div class="detail-row">
+        <span>Hop Name</span>
+        <strong>${escapeHtml(hop.name)}</strong>
+      </div>
+
+      <div class="detail-row">
+        <span>Technical Detail</span>
+        <strong>${escapeHtml(hop.detail)}</strong>
+      </div>
+
+      <div class="smart-hands-note">
+        <strong>Field instruction value</strong>
+        <p>
+          This hop can later become an individual Smart Hands checklist step
+          with validation, notes and photo evidence.
+        </p>
+      </div>
+    </div>
+  `;
+}
+
+
+/*
+  renderConnectivityDefaultDetail()
+
+  Used when there is no specific selected path yet.
+*/
+function renderConnectivityDefaultDetail(paths) {
+  if (!connectionDetailTitle || !connectionDetailBody) return;
+
+  connectionDetailTitle.textContent = "Connection Details";
+
+  connectionDetailBody.innerHTML = `
+    <p class="connection-muted">
+      Select a path or a route node to inspect details.
+    </p>
+
+    <div class="connection-route-list">
+      <strong>Available paths</strong>
+      <ol>
+        ${paths.map((path) => `
+          <li>
+            <span>${escapeHtml(path.title)}</span>
+            <small>${escapeHtml(path.source)} → ${escapeHtml(path.destination)}</small>
+          </li>
+        `).join("")}
+      </ol>
+    </div>
+  `;
+}
+
+
+/*
+  renderConnectivityNoPathDetail()
+
+  Used when the selected rack has no modeled connectivity.
+*/
+function renderConnectivityNoPathDetail() {
+  if (!connectionDetailTitle || !connectionDetailBody) return;
+
+  connectionDetailTitle.textContent = "No Connectivity Model";
+
+  connectionDetailBody.innerHTML = `
+    <p class="connection-muted">
+      This rack does not have documented MDF/OH/device paths yet.
+    </p>
+
+    <div class="smart-hands-note">
+      <strong>Next DCIM step</strong>
+      <p>
+        Add connection records for devices, ports, panels, backbone and destination endpoints.
+      </p>
+    </div>
+  `;
+}
+
+
+/*
+  renderConnectivitySelectedPortWithoutPath()
+
+  Used when the user clicks a port that exists, but no route exists yet
+  in connectivityPaths.
+*/
+function renderConnectivitySelectedPortWithoutPath() {
+  if (!connectionDetailTitle || !connectionDetailBody) return;
+
+  const device = getSelectedDevice();
+  const port = getSelectedPort();
+
+  connectionDetailTitle.textContent = "No Path Recorded";
+
+  connectionDetailBody.innerHTML = `
+    <p class="connection-muted">
+      The selected port exists, but RIV does not have a documented connectivity path for it yet.
+    </p>
+
+    <div class="detail-row">
+      <span>Selected Port</span>
+      <strong>${escapeHtml(device?.name || "Unknown Device")} / ${escapeHtml(port?.name || "Unknown Port")}</strong>
+    </div>
+
+    <div class="smart-hands-note">
+      <strong>Recommended modeling action</strong>
+      <p>
+        Create a path record using the key:
+        <strong>${escapeHtml(selectedDeviceId || "device-id")}:${escapeHtml(selectedPortKey || "port-key")}</strong>
+        inside <strong>connectivityPaths</strong>.
+      </p>
+    </div>
+  `;
+}
+
+
+/*
+  getConnectivityPathsForActiveRack()
+
+  Filters connectivityPaths to show only paths related to the active rack.
+  For now, it matches using device names present in the rack.
+*/
+function getConnectivityPathsForActiveRack() {
+  if (!activeRack) return [];
+
+  const rackDeviceNames = new Set(activeRack.devices.map((device) => device.name));
+
+  return Object.values(connectivityPaths).filter((path) => {
+    return path.hops.some((hop) => rackDeviceNames.has(hop.name));
+  });
+}
+
+
+/*
+  getConnectivityPathForSelectedPort()
+
+  Finds the path directly associated with the selected device/port.
+  Example:
+  selectedDeviceId = "core-sw-01"
+  selectedPortKey = "14"
+  lookup key = "core-sw-01:14"
+*/
+function getConnectivityPathForSelectedPort() {
+  if (!selectedDeviceId || !selectedPortKey) return null;
+
+  const pathKey = `${selectedDeviceId}:${selectedPortKey}`;
+  return connectivityPaths[pathKey] || null;
+}
+
+
+/*
+  buildConnectivityMapStats()
+
+  Produces summary values for the visual map header.
+*/
+function buildConnectivityMapStats(paths) {
+  return paths.reduce((summary, path) => {
+    const statusClass = getConnectivityStatusClass(path.status);
+
+    if (statusClass === "warning") {
+      summary.warning += 1;
+    } else if (statusClass === "up") {
+      summary.up += 1;
+    } else {
+      summary.other += 1;
+    }
+
+    return summary;
+  }, {
+    up: 0,
+    warning: 0,
+    other: 0
+  });
+}
+
+
+/*
+  countUniqueConnectivityHops()
+
+  Counts unique visual nodes across all paths.
+*/
+function countUniqueConnectivityHops(paths) {
+  const unique = new Set();
+
+  paths.forEach((path) => {
+    path.hops.forEach((hop) => {
+      unique.add(`${hop.type}:${hop.name}`);
+    });
+  });
+
+  return unique.size;
+}
+
+
+/*
+  getConnectivityStatusClass()
+
+  Normalizes path statuses into CSS-friendly names.
+*/
+function getConnectivityStatusClass(status) {
+  if (status === "warning") return "warning";
+  if (status === "critical") return "critical";
+  if (status === "down" || status === "offline") return "offline";
+  return "up";
+}
+
+
+/*
+  getConnectivityStatusLabel()
+
+  Human-readable status labels.
+*/
+function getConnectivityStatusLabel(status) {
+  if (status === "warning") return "Needs Review";
+  if (status === "critical") return "Critical";
+  if (status === "down" || status === "offline") return "Offline";
+  return "Operational";
+}
+
+
+/*
+  getConnectivityHopIcon()
+
+  Short labels used inside visual hop nodes.
+*/
+function getConnectivityHopIcon(type) {
+  const icons = {
+    rack: "RACK",
+    device: "DEV",
+    oh: "OH",
+    mdf: "MDF",
+    backbone: "BB",
+    patch: "PATCH"
+  };
+
+  return icons[type] || "NODE";
+}
+
+
+/*
+  escapeHtml()
+
+  Protects the UI from accidental HTML injection when rendering strings.
+  Even though current data is demo/local, this is important for future backend data.
+*/
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+
+/*
+  injectConnectivityMapStyles()
+
+  Temporary frontend-only styling for Connectivity Map.
+
+  Why injected here?
+  - So we can move fast without editing another file right now.
+  - Later, these styles should be moved into src/web/styles.css
+    under a formal Romanoti Platform design standard section.
+*/
+function injectConnectivityMapStyles() {
+  if (document.getElementById("riv-connectivity-map-styles")) return;
+
+  const style = document.createElement("style");
+  style.id = "riv-connectivity-map-styles";
+
+  style.textContent = `
+    .connectivity-empty-state {
+      min-height: 360px;
+      border: 1px dashed rgba(201, 178, 126, 0.35);
+      border-radius: 22px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 32px;
+      background:
+        radial-gradient(circle at top left, rgba(201, 178, 126, 0.13), transparent 30%),
+        rgba(255, 255, 255, 0.035);
+      color: rgba(255, 255, 255, 0.78);
+    }
+
+    .connectivity-empty-icon {
+      width: 64px;
+      height: 64px;
+      border-radius: 20px;
+      display: grid;
+      place-items: center;
+      margin-bottom: 16px;
+      background: rgba(201, 178, 126, 0.18);
+      color: #f3dfad;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+    }
+
+    .connectivity-empty-state h3 {
+      margin: 0 0 8px;
+      color: #ffffff;
+    }
+
+    .connectivity-empty-state p {
+      max-width: 520px;
+      margin: 0;
+      line-height: 1.6;
+    }
+
+    .connectivity-map-shell {
+      border-radius: 24px;
+      padding: 20px;
+      background:
+        radial-gradient(circle at 15% 10%, rgba(125, 211, 252, 0.10), transparent 30%),
+        radial-gradient(circle at 85% 70%, rgba(201, 178, 126, 0.12), transparent 32%),
+        rgba(7, 12, 21, 0.72);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: #f8fafc;
+    }
+
+    .connectivity-map-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 18px;
+      align-items: flex-start;
+      margin-bottom: 16px;
+    }
+
+    .connectivity-eyebrow {
+      display: block;
+      color: #c9b27e;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      font-size: 11px;
+      font-weight: 800;
+      margin-bottom: 6px;
+    }
+
+    .connectivity-map-header h3 {
+      margin: 0 0 6px;
+      font-size: 22px;
+      color: #ffffff;
+    }
+
+    .connectivity-map-header p {
+      margin: 0;
+      color: rgba(248, 250, 252, 0.68);
+      line-height: 1.55;
+    }
+
+    .connectivity-health {
+      padding: 9px 13px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    .connectivity-health.healthy {
+      color: #dcfce7;
+      background: rgba(34, 197, 94, 0.16);
+      border: 1px solid rgba(34, 197, 94, 0.35);
+    }
+
+    .connectivity-health.warning {
+      color: #fff3bf;
+      background: rgba(255, 209, 102, 0.16);
+      border: 1px solid rgba(255, 209, 102, 0.35);
+    }
+
+    .connectivity-stats {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(120px, 1fr));
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .connectivity-stats div {
+      padding: 13px 14px;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .connectivity-stats strong {
+      display: block;
+      color: #ffffff;
+      font-size: 24px;
+      line-height: 1;
+      margin-bottom: 5px;
+    }
+
+    .connectivity-stats span {
+      color: rgba(248, 250, 252, 0.68);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .connectivity-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 16px;
+      color: rgba(248, 250, 252, 0.76);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .connectivity-legend span {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 10px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.055);
+    }
+
+    .legend-node,
+    .legend-status {
+      width: 11px;
+      height: 11px;
+      border-radius: 999px;
+      display: inline-block;
+    }
+
+    .legend-node.rack { background: #cbd5e1; }
+    .legend-node.device { background: #c084fc; }
+    .legend-node.oh { background: #7dd3fc; }
+    .legend-node.mdf { background: #c9b27e; }
+    .legend-node.backbone { background: #38bdf8; }
+    .legend-status.warning { background: #ffd166; }
+
+    .connectivity-map-viewport {
+      transform: scale(var(--connectivity-zoom));
+      transform-origin: top left;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .connectivity-path-lane {
+      border-radius: 20px;
+      padding: 16px;
+      background: rgba(255, 255, 255, 0.055);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      cursor: pointer;
+      transition:
+        border-color 0.2s ease,
+        box-shadow 0.2s ease,
+        transform 0.2s ease,
+        background 0.2s ease;
+    }
+
+    .connectivity-path-lane:hover,
+    .connectivity-path-lane.selected {
+      transform: translateY(-1px);
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(201, 178, 126, 0.50);
+      box-shadow: 0 16px 38px rgba(0, 0, 0, 0.22);
+    }
+
+    .connectivity-path-lane.warning {
+      border-color: rgba(255, 209, 102, 0.28);
+    }
+
+    .connectivity-path-lane.warning.selected {
+      border-color: rgba(255, 209, 102, 0.75);
+      box-shadow: 0 0 0 1px rgba(255, 209, 102, 0.28), 0 16px 38px rgba(0, 0, 0, 0.22);
+    }
+
+    .connectivity-path-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      align-items: flex-start;
+      margin-bottom: 14px;
+    }
+
+    .connectivity-path-top strong {
+      display: block;
+      color: #ffffff;
+      margin-bottom: 4px;
+    }
+
+    .connectivity-path-top span {
+      color: rgba(248, 250, 252, 0.66);
+      font-size: 13px;
+    }
+
+    .connectivity-path-top em {
+      font-style: normal;
+      padding: 7px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    .connectivity-path-top em.up {
+      color: #dcfce7;
+      background: rgba(34, 197, 94, 0.16);
+      border: 1px solid rgba(34, 197, 94, 0.32);
+    }
+
+    .connectivity-path-top em.warning {
+      color: #fff3bf;
+      background: rgba(255, 209, 102, 0.16);
+      border: 1px solid rgba(255, 209, 102, 0.32);
+    }
+
+    .connectivity-hop-row {
+      display: flex;
+      align-items: stretch;
+      gap: 8px;
+      overflow-x: auto;
+      padding: 8px 2px 12px;
+    }
+
+    .connectivity-hop {
+      min-width: 132px;
+      max-width: 160px;
+      border: none;
+      border-radius: 16px;
+      padding: 11px 10px;
+      color: #ffffff;
+      text-align: left;
+      cursor: pointer;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.10);
+      transition: transform 0.18s ease, border-color 0.18s ease;
+    }
+
+    .connectivity-hop:hover {
+      transform: translateY(-2px);
+      border-color: rgba(255, 255, 255, 0.28);
+    }
+
+    .connectivity-hop span {
+      display: inline-flex;
+      padding: 4px 7px;
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 900;
+      margin-bottom: 7px;
+      background: rgba(255, 255, 255, 0.10);
+    }
+
+    .connectivity-hop strong {
+      display: block;
+      font-size: 13px;
+      margin-bottom: 5px;
+    }
+
+    .connectivity-hop small {
+      display: block;
+      color: rgba(248, 250, 252, 0.68);
+      line-height: 1.35;
+    }
+
+    .connectivity-hop.rack {
+      background: rgba(148, 163, 184, 0.16);
+      border-color: rgba(203, 213, 225, 0.30);
+    }
+
+    .connectivity-hop.device {
+      background: rgba(192, 132, 252, 0.15);
+      border-color: rgba(192, 132, 252, 0.32);
+    }
+
+    .connectivity-hop.oh {
+      background: rgba(125, 211, 252, 0.14);
+      border-color: rgba(125, 211, 252, 0.32);
+    }
+
+    .connectivity-hop.mdf {
+      background: rgba(201, 178, 126, 0.16);
+      border-color: rgba(201, 178, 126, 0.34);
+    }
+
+    .connectivity-hop.backbone {
+      background: rgba(56, 189, 248, 0.13);
+      border-color: rgba(56, 189, 248, 0.32);
+    }
+
+    .connectivity-hop.patch {
+      background: rgba(34, 197, 94, 0.13);
+      border-color: rgba(34, 197, 94, 0.28);
+    }
+
+    .connectivity-arrow {
+      display: flex;
+      align-items: center;
+      color: rgba(248, 250, 252, 0.55);
+      font-size: 22px;
+      font-weight: 900;
+      padding: 0 2px;
+      user-select: none;
+    }
+
+    .connectivity-path-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 4px;
+      color: rgba(248, 250, 252, 0.70);
+      font-size: 12px;
+    }
+
+    .connectivity-path-meta span {
+      padding: 7px 9px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.055);
+    }
+
+    .connectivity-path-meta strong {
+      color: #ffffff;
+    }
+
+    .connection-muted {
+      color: rgba(248, 250, 252, 0.70);
+      line-height: 1.55;
+    }
+
+    .connection-detail-card {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .connection-detail-status {
+      display: inline-flex;
+      width: fit-content;
+      padding: 7px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .connection-detail-status.up {
+      color: #dcfce7;
+      background: rgba(34, 197, 94, 0.16);
+      border: 1px solid rgba(34, 197, 94, 0.32);
+    }
+
+    .connection-detail-status.warning {
+      color: #fff3bf;
+      background: rgba(255, 209, 102, 0.16);
+      border: 1px solid rgba(255, 209, 102, 0.32);
+    }
+
+    .connection-route-list {
+      padding-top: 10px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .connection-route-list > strong {
+      display: block;
+      color: #f3dfad;
+      margin-bottom: 8px;
+    }
+
+    .connection-route-list ol {
+      margin: 0;
+      padding-left: 20px;
+    }
+
+    .connection-route-list li {
+      margin-bottom: 8px;
+      color: rgba(248, 250, 252, 0.82);
+    }
+
+    .connection-route-list li span {
+      display: block;
+      font-weight: 800;
+      color: #ffffff;
+    }
+
+    .connection-route-list li small {
+      display: block;
+      color: rgba(248, 250, 252, 0.62);
+      margin-top: 2px;
+    }
+
+    .smart-hands-note {
+      padding: 12px;
+      border-radius: 16px;
+      background: rgba(201, 178, 126, 0.10);
+      border: 1px solid rgba(201, 178, 126, 0.22);
+    }
+
+    .smart-hands-note strong {
+      display: block;
+      color: #f3dfad;
+      margin-bottom: 6px;
+    }
+
+    .smart-hands-note p {
+      margin: 0;
+      color: rgba(248, 250, 252, 0.76);
+      line-height: 1.55;
+    }
+
+    @media (max-width: 900px) {
+      .connectivity-map-header,
+      .connectivity-path-top {
+        flex-direction: column;
+      }
+
+      .connectivity-stats {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 560px) {
+      .connectivity-stats {
+        grid-template-columns: 1fr;
+      }
+
+      .connectivity-map-shell {
+        padding: 14px;
+      }
+    }
+  `;
+
+  document.head.appendChild(style);
+}
 /* ==========================================================
    SECTION 7 - Helpers
    ========================================================== */
