@@ -64,6 +64,7 @@ from src.engine.verification_engine import VerificationEngine
 from src.engine.closure_generator import ClosureGenerator
 from src.engine.runbook_generator import RunbookGenerator
 from src.engine.ticket_parser import TicketParser
+from src.api.riv_repository import repository_response
 
 
 # ============================================================
@@ -989,7 +990,167 @@ def favicon():
 # ============================================================
 # PROTECTED API ROUTES
 # ============================================================
+# ============================================================
+# RIV SUPABASE API ROUTES
+# ============================================================
 
+@app.route("/api/riv/health", methods=["GET"])
+@login_required
+def riv_health():
+    """
+    Verify backend connectivity with the dedicated RIV Supabase project.
+    """
+    response = repository_response("health")
+    status_code = 200 if response.get("success") else 500
+    return jsonify(response), status_code
+
+
+@app.route("/api/riv/workspace", methods=["GET"])
+@login_required
+def riv_workspace():
+    """
+    Return the complete RIV workspace payload.
+
+    Used by:
+    - Rack View
+    - Multi-Rack View
+    - Connectivity Map
+    - Smart Hands preparation
+    """
+    response = repository_response("get_workspace_payload")
+    status_code = 200 if response.get("success") else 500
+    return jsonify(response), status_code
+
+
+@app.route("/api/riv/companies", methods=["GET"])
+@login_required
+def riv_companies():
+    """
+    Return RIV companies.
+    """
+    response = repository_response("get_companies")
+    status_code = 200 if response.get("success") else 500
+    return jsonify(response), status_code
+
+
+@app.route("/api/riv/data-centers", methods=["GET"])
+@login_required
+def riv_data_centers():
+    """
+    Return RIV data centers.
+
+    Optional query:
+    /api/riv/data-centers?company_id=<uuid>
+    """
+    company_id = request.args.get("company_id")
+    response = repository_response("get_data_centers", company_id=company_id)
+    status_code = 200 if response.get("success") else 500
+    return jsonify(response), status_code
+
+
+@app.route("/api/riv/racks", methods=["GET"])
+@login_required
+def riv_racks():
+    """
+    Return RIV racks.
+
+    Optional query:
+    /api/riv/racks?data_center_id=<uuid>
+    """
+    data_center_id = request.args.get("data_center_id")
+    response = repository_response("get_racks", data_center_id=data_center_id)
+    status_code = 200 if response.get("success") else 500
+    return jsonify(response), status_code
+
+
+@app.route("/api/riv/devices", methods=["GET"])
+@login_required
+def riv_devices():
+    """
+    Return RIV devices.
+
+    Optional query:
+    /api/riv/devices?rack_id=<uuid>
+    """
+    rack_id = request.args.get("rack_id")
+    response = repository_response("get_devices", rack_id=rack_id)
+    status_code = 200 if response.get("success") else 500
+    return jsonify(response), status_code
+
+
+@app.route("/api/riv/device-assets", methods=["GET"])
+@login_required
+def riv_device_assets():
+    """
+    Return RIV device asset definitions.
+
+    These records describe real-world device models such as:
+    - Cisco Catalyst 9300-24T
+    - Fortinet FortiGate 100F
+    - Dell PowerEdge R650
+    """
+    response = repository_response("get_device_assets")
+    status_code = 200 if response.get("success") else 500
+    return jsonify(response), status_code
+
+
+@app.route("/api/riv/device-asset-ports", methods=["GET"])
+@login_required
+def riv_device_asset_ports():
+    """
+    Return expected physical ports for a device asset.
+
+    Optional query:
+    /api/riv/device-asset-ports?device_asset_id=<uuid>
+    """
+    device_asset_id = request.args.get("device_asset_id")
+    response = repository_response(
+        "get_device_asset_ports",
+        device_asset_id=device_asset_id,
+    )
+    status_code = 200 if response.get("success") else 500
+    return jsonify(response), status_code
+
+
+@app.route("/api/riv/device-ports", methods=["GET"])
+@login_required
+def riv_device_ports():
+    """
+    Return live/instance ports for a specific installed device.
+
+    Optional query:
+    /api/riv/device-ports?device_id=<uuid>
+    """
+    device_id = request.args.get("device_id")
+    response = repository_response("get_device_ports", device_id=device_id)
+    status_code = 200 if response.get("success") else 500
+    return jsonify(response), status_code
+
+
+@app.route("/api/riv/connectivity-paths", methods=["GET"])
+@login_required
+def riv_connectivity_paths():
+    """
+    Return RIV connectivity paths.
+
+    Optional query:
+    /api/riv/connectivity-paths?rack_id=<uuid>
+    """
+    rack_id = request.args.get("rack_id")
+    response = repository_response("get_connectivity_paths", rack_id=rack_id)
+    status_code = 200 if response.get("success") else 500
+    return jsonify(response), status_code
+
+
+@app.route("/api/riv/smart-hands-tasks", methods=["GET"])
+@login_required
+def riv_smart_hands_tasks():
+    """
+    Return Smart Hands task preparation records.
+    """
+    response = repository_response("get_smart_hands_tasks")
+    status_code = 200 if response.get("success") else 500
+    return jsonify(response), status_code
 @app.route("/run-demo", methods=["POST"])
 @login_required
 def run_demo():
