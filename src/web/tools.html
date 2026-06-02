@@ -1,0 +1,1724 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- =======================================================
+       Romanoti RIV - Current Tools
+       File: src/web/current-tools.html
+
+       Purpose:
+       Dedicated protected module for operational helper tools
+       that support RIV pilot workflows.
+
+       Product direction:
+       - Keep the dashboard clean.
+       - Move helper utilities into a focused page.
+       - Provide guided tools for Smart Hands preparation,
+         cable planning, label generation, service request
+         drafting, validation checks and closure notes.
+       - Later this page should call backend/API services.
+
+       Current stage:
+       - Standalone browser tools.
+       - Reads selected context from URL/sessionStorage.
+       - Generates structured outputs without backend storage.
+       ======================================================= -->
+
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>Romanoti RIV - Current Tools</title>
+
+  <style>
+    :root {
+      --bg: #071225;
+      --panel: rgba(255, 255, 255, 0.065);
+      --border: rgba(255, 255, 255, 0.12);
+      --border-strong: rgba(255, 255, 255, 0.20);
+      --text: #ffffff;
+      --muted: rgba(255, 255, 255, 0.66);
+      --soft: rgba(255, 255, 255, 0.46);
+      --gold: #f3dfad;
+      --gold-strong: #fbbf24;
+      --blue: #38bdf8;
+      --green: #22c55e;
+      --yellow: #f59e0b;
+      --red: #ef4444;
+      --purple: #a78bfa;
+      --radius: 24px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Arial, Helvetica, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(56, 189, 248, 0.13), transparent 32%),
+        radial-gradient(circle at top right, rgba(251, 191, 36, 0.08), transparent 28%),
+        linear-gradient(135deg, #071225 0%, #0d1b31 52%, #050b14 100%);
+    }
+
+    a {
+      color: inherit;
+    }
+
+    button,
+    select,
+    textarea,
+    input {
+      font-family: inherit;
+    }
+
+    .shell {
+      display: grid;
+      grid-template-columns: 280px minmax(0, 1fr);
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      padding: 28px 20px;
+      background: rgba(5, 12, 24, 0.96);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .brand-mark {
+      width: 54px;
+      height: 54px;
+      border-radius: 16px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, #6366f1, #ef4444);
+      font-size: 28px;
+      font-weight: 900;
+      box-shadow: 0 18px 36px rgba(239, 68, 68, 0.25);
+    }
+
+    .brand-title {
+      font-size: 24px;
+      font-weight: 900;
+      letter-spacing: -0.04em;
+      line-height: 1;
+    }
+
+    .brand-subtitle {
+      margin-top: 5px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .nav {
+      display: grid;
+      gap: 8px;
+    }
+
+    .nav a {
+      text-decoration: none;
+      padding: 13px 15px;
+      border-radius: 14px;
+      color: rgba(255, 255, 255, 0.74);
+      font-size: 14px;
+      font-weight: 800;
+    }
+
+    .nav a:hover {
+      background: rgba(255, 255, 255, 0.075);
+      color: #ffffff;
+    }
+
+    .nav a.active {
+      background: rgba(56, 189, 248, 0.16);
+      border: 1px solid rgba(56, 189, 248, 0.30);
+      color: #ffffff;
+    }
+
+    .sidebar-spacer {
+      flex: 1;
+    }
+
+    .mini-card {
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.055);
+      border-radius: 18px;
+      padding: 16px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    .mini-card strong {
+      display: block;
+      color: #ffffff;
+      margin-bottom: 4px;
+    }
+
+    .status-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .status-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 999px;
+      background: var(--green);
+      box-shadow: 0 0 0 5px rgba(34, 197, 94, 0.13);
+    }
+
+    .main {
+      padding: 32px;
+      min-width: 0;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      gap: 24px;
+      align-items: flex-start;
+      margin-bottom: 24px;
+    }
+
+    .eyebrow {
+      margin: 0 0 8px;
+      color: #a9c7ff;
+      font-size: 13px;
+      font-weight: 900;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(36px, 4vw, 56px);
+      line-height: 0.96;
+      letter-spacing: -0.055em;
+    }
+
+    .lead {
+      margin: 12px 0 0;
+      max-width: 940px;
+      color: var(--muted);
+      line-height: 1.55;
+      font-size: 16px;
+    }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-shrink: 0;
+    }
+
+    .user-pill {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 11px 15px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.075);
+      border: 1px solid var(--border);
+    }
+
+    .avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 999px;
+      background: rgba(56, 189, 248, 0.20);
+      display: grid;
+      place-items: center;
+      font-weight: 900;
+    }
+
+    .user-pill strong {
+      display: block;
+      font-size: 14px;
+    }
+
+    .user-pill span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 2px;
+    }
+
+    .btn,
+    .btn-primary,
+    .btn-ghost,
+    .btn-success {
+      min-height: 44px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      padding: 12px 17px;
+      font-weight: 900;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      white-space: nowrap;
+    }
+
+    .btn {
+      color: #ffffff;
+      background: rgba(255, 255, 255, 0.075);
+    }
+
+    .btn-primary {
+      border: none;
+      color: #071225;
+      background: linear-gradient(135deg, var(--gold), var(--gold-strong));
+    }
+
+    .btn-ghost {
+      color: var(--gold);
+      background: transparent;
+      border-color: rgba(243, 223, 173, 0.30);
+    }
+
+    .btn-success {
+      color: #bbf7d0;
+      background: rgba(34, 197, 94, 0.12);
+      border-color: rgba(34, 197, 94, 0.24);
+    }
+
+    .workspace {
+      border-radius: 28px;
+      padding: 22px;
+      margin-bottom: 20px;
+      border: 1px solid var(--border);
+      background:
+        radial-gradient(circle at top right, rgba(56, 189, 248, 0.10), transparent 34%),
+        linear-gradient(145deg, rgba(255,255,255,0.085), rgba(255,255,255,0.045));
+    }
+
+    .workspace-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1.15fr auto;
+      gap: 14px;
+      align-items: end;
+    }
+
+    .field {
+      display: grid;
+      gap: 7px;
+    }
+
+    .field label {
+      color: rgba(255,255,255,0.72);
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: 0.10em;
+      text-transform: uppercase;
+    }
+
+    select,
+    textarea,
+    input {
+      width: 100%;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,0.14);
+      background: rgba(2, 8, 18, 0.88);
+      color: #ffffff;
+      font-weight: 800;
+      outline: none;
+    }
+
+    select,
+    input {
+      min-height: 46px;
+      padding: 12px 14px;
+    }
+
+    textarea {
+      min-height: 260px;
+      resize: vertical;
+      padding: 14px;
+      line-height: 1.5;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+
+    .metric-card {
+      border-radius: 22px;
+      padding: 20px;
+      background: rgba(255, 255, 255, 0.060);
+      border: 1px solid var(--border);
+    }
+
+    .metric-card span {
+      display: block;
+      color: var(--soft);
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      margin-bottom: 9px;
+    }
+
+    .metric-card strong {
+      display: block;
+      font-size: 26px;
+      line-height: 1;
+      letter-spacing: -0.04em;
+    }
+
+    .module-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 420px;
+      gap: 18px;
+      align-items: start;
+    }
+
+    .panel {
+      border-radius: var(--radius);
+      background: linear-gradient(145deg, rgba(255,255,255,0.070), rgba(255,255,255,0.040));
+      border: 1px solid var(--border);
+      box-shadow: 0 18px 55px rgba(0,0,0,0.18);
+    }
+
+    .panel-pad {
+      padding: 22px;
+    }
+
+    .panel-title {
+      margin: 0 0 16px;
+      color: #a9c7ff;
+      font-size: 13px;
+      font-weight: 900;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+    }
+
+    .tool-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .tool-card {
+      position: relative;
+      min-height: 164px;
+      padding: 18px;
+      border-radius: 20px;
+      background: rgba(255,255,255,0.055);
+      border: 1px solid rgba(255,255,255,0.09);
+      cursor: pointer;
+      transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease;
+    }
+
+    .tool-card:hover,
+    .tool-card.active {
+      transform: translateY(-2px);
+      border-color: rgba(56,189,248,0.42);
+      background:
+        radial-gradient(circle at top right, rgba(56,189,248,0.14), transparent 42%),
+        rgba(255,255,255,0.060);
+    }
+
+    .tool-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      margin-bottom: 12px;
+      background: rgba(56,189,248,0.16);
+      color: #bae6fd;
+      font-weight: 900;
+      font-size: 20px;
+    }
+
+    .tool-card h3 {
+      margin: 0 0 8px;
+      font-size: 17px;
+      letter-spacing: -0.025em;
+    }
+
+    .tool-card p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.45;
+      font-size: 13px;
+    }
+
+    .tool-card span {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      padding: 6px 8px;
+      border-radius: 999px;
+      color: var(--gold);
+      background: rgba(243, 223, 173, 0.10);
+      border: 1px solid rgba(243, 223, 173, 0.16);
+      font-size: 10px;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    .section-gap {
+      margin-top: 18px;
+    }
+
+    .builder-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+
+    .output-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+
+    .output-header h2 {
+      margin: 0;
+      font-size: 28px;
+      letter-spacing: -0.04em;
+    }
+
+    .output-header p {
+      margin: 7px 0 0;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    .output-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+
+    .detail-panel h2 {
+      margin: 0;
+      font-size: 28px;
+      letter-spacing: -0.04em;
+    }
+
+    .detail-subtitle {
+      color: var(--muted);
+      margin: 7px 0 0;
+      line-height: 1.45;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin: 16px 0;
+      padding: 9px 13px;
+      border-radius: 999px;
+      color: #86efac;
+      background: rgba(34,197,94,0.16);
+      border: 1px solid rgba(34,197,94,0.28);
+      font-size: 13px;
+      font-weight: 900;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .status-pill.pending {
+      color: #bae6fd;
+      background: rgba(56,189,248,0.16);
+      border-color: rgba(56,189,248,0.34);
+    }
+
+    .detail-row {
+      padding: 13px 0;
+      border-top: 1px solid rgba(255,255,255,0.075);
+    }
+
+    .detail-row span {
+      display: block;
+      color: var(--soft);
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: 0.10em;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    .detail-row strong {
+      display: block;
+      color: #ffffff;
+      font-size: 14px;
+      line-height: 1.45;
+    }
+
+    .compact-list {
+      display: grid;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .compact-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: center;
+      padding: 11px 12px;
+      border-radius: 14px;
+      background: rgba(255,255,255,0.055);
+      border: 1px solid rgba(255,255,255,0.08);
+      font-size: 13px;
+    }
+
+    .compact-row strong {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .compact-row span {
+      color: var(--gold);
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    .action-stack {
+      display: grid;
+      gap: 10px;
+      margin-top: 18px;
+      padding-top: 18px;
+      border-top: 1px solid rgba(255,255,255,0.075);
+    }
+
+    .action-stack a,
+    .action-stack button {
+      width: 100%;
+    }
+
+    .notes-panel {
+      margin-top: 18px;
+      border-radius: 20px;
+      padding: 18px;
+      background: rgba(243, 223, 173, 0.08);
+      border: 1px solid rgba(243, 223, 173, 0.20);
+    }
+
+    .notes-panel strong {
+      display: block;
+      color: var(--gold);
+      margin-bottom: 8px;
+    }
+
+    .notes-panel p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.55;
+      font-size: 14px;
+    }
+
+    .toast {
+      display: none;
+      margin-top: 10px;
+      border-radius: 14px;
+      padding: 11px 12px;
+      color: #bbf7d0;
+      background: rgba(34,197,94,0.12);
+      border: 1px solid rgba(34,197,94,0.24);
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .toast.show {
+      display: block;
+    }
+
+    @media (max-width: 1360px) {
+      .module-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .metric-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .tool-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 1050px) {
+      .shell {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        position: relative;
+        height: auto;
+      }
+
+      .workspace-grid,
+      .builder-grid,
+      .tool-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .main {
+        padding: 20px;
+      }
+
+      .topbar,
+      .output-header {
+        flex-direction: column;
+      }
+
+      .top-actions {
+        flex-wrap: wrap;
+      }
+
+      .metric-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .output-actions {
+        justify-content: flex-start;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="shell">
+
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">R</div>
+        <div>
+          <div class="brand-title">Romanoti RIV</div>
+          <div class="brand-subtitle">Infrastructure Visualizer</div>
+        </div>
+      </div>
+
+      <nav class="nav">
+        <a href="/dashboard">Operations Hub</a>
+        <a href="/rack-view">Rack View</a>
+        <a href="/multi-rack">Multi-Rack View</a>
+        <a href="/connectivity-map">Connectivity Map</a>
+        <a href="/connection-details">Connection Details</a>
+        <a href="/smart-hands">Smart Hands</a>
+        <a href="/current-tools" class="active">Current Tools</a>
+      </nav>
+
+      <div class="sidebar-spacer"></div>
+
+      <div class="mini-card">
+        <div class="status-row">
+          <span class="status-dot"></span>
+          <div>
+            <strong id="sideSite">DemoDC-01</strong>
+            <span>Protected pilot environment</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="mini-card">
+        <strong>RIV Pilot v1.2</strong>
+        <span>Operational helper tools prepared for future backend integration.</span>
+      </div>
+    </aside>
+
+    <main class="main">
+
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Romanoti Infrastructure Visualizer</p>
+          <h1>Current Tools</h1>
+          <p class="lead">
+            Operational utilities for the RIV pilot: cable planning, label generation,
+            Smart Hands request drafting, validation summaries, closure notes and quick
+            report outputs.
+          </p>
+        </div>
+
+        <div class="top-actions">
+          <div class="user-pill">
+            <div class="avatar" id="userInitials">MR</div>
+            <div>
+              <strong id="displayName">Mauricio Romero</strong>
+              <span id="displayRole">Romanoti Admin</span>
+            </div>
+          </div>
+
+          <a class="btn" href="/logout">Logout</a>
+        </div>
+      </header>
+
+      <section class="workspace">
+        <p class="eyebrow">Workspace Selection</p>
+
+        <div class="workspace-grid">
+          <div class="field">
+            <label for="companySelect">Company</label>
+            <select id="companySelect"></select>
+          </div>
+
+          <div class="field">
+            <label for="datacenterSelect">Data Center</label>
+            <select id="datacenterSelect"></select>
+          </div>
+
+          <div class="field">
+            <label for="contextSelect">Context</label>
+            <select id="contextSelect"></select>
+          </div>
+
+          <button class="btn-primary" id="loadContextBtn" type="button">
+            Load Context
+          </button>
+        </div>
+      </section>
+
+      <section class="metric-grid">
+        <article class="metric-card">
+          <span>Available Tools</span>
+          <strong id="toolsMetric">0</strong>
+        </article>
+
+        <article class="metric-card">
+          <span>Selected Tool</span>
+          <strong id="selectedToolMetric">None</strong>
+        </article>
+
+        <article class="metric-card">
+          <span>Cable Runs</span>
+          <strong id="runsMetric">0</strong>
+        </article>
+
+        <article class="metric-card">
+          <span>Total Length</span>
+          <strong id="lengthMetric">0m</strong>
+        </article>
+
+        <article class="metric-card">
+          <span>Output</span>
+          <strong id="outputMetric">Ready</strong>
+        </article>
+      </section>
+
+      <section class="module-layout">
+
+        <section>
+
+          <section class="panel panel-pad">
+            <p class="panel-title">Tool Library</p>
+            <div class="tool-grid" id="toolGrid"></div>
+          </section>
+
+          <section class="panel panel-pad section-gap">
+            <div class="output-header">
+              <div>
+                <p class="panel-title">Tool Builder</p>
+                <h2 id="builderTitle">Select a tool</h2>
+                <p id="builderDescription">
+                  Choose one of the current tools to generate a structured output.
+                </p>
+              </div>
+
+              <div class="output-actions">
+                <button class="btn-primary" id="generateBtn" type="button">
+                  Generate
+                </button>
+                <button class="btn" id="copyOutputBtn" type="button">
+                  Copy Output
+                </button>
+                <button class="btn-ghost" id="resetOutputBtn" type="button">
+                  Reset
+                </button>
+              </div>
+            </div>
+
+            <div class="builder-grid">
+              <div class="field">
+                <label for="operatorName">Operator / Technician</label>
+                <input id="operatorName" value="Smart Hands Technician" />
+              </div>
+
+              <div class="field">
+                <label for="ticketRef">Ticket / Reference</label>
+                <input id="ticketRef" value="RIV-PILOT-1001" />
+              </div>
+
+              <div class="field">
+                <label for="sourceInput">Source</label>
+                <input id="sourceInput" value="CORE-SW-01 Eth5 / Rack R42 RU39" />
+              </div>
+
+              <div class="field">
+                <label for="destinationInput">Destination</label>
+                <input id="destinationInput" value="SRV-APP-01 NIC1 / Rack R42 RU19" />
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="notesInput">Notes / Requirements</label>
+              <textarea id="notesInput">Use validated RIV connection details. Confirm labels, cable length, connector type and link LED after patching.</textarea>
+            </div>
+          </section>
+
+          <section class="panel panel-pad section-gap">
+            <div class="output-header">
+              <div>
+                <p class="panel-title">Generated Output</p>
+                <h2 id="outputTitle">No output generated</h2>
+                <p id="outputDescription">
+                  Generate an output from the selected tool.
+                </p>
+              </div>
+            </div>
+
+            <textarea id="toolOutput" placeholder="Generated tool output will appear here."></textarea>
+            <div class="toast" id="toastMessage">Copied to clipboard.</div>
+          </section>
+
+        </section>
+
+        <aside class="panel panel-pad detail-panel">
+          <p class="panel-title">Context Summary</p>
+
+          <h2 id="contextTitle">No context loaded</h2>
+          <p class="detail-subtitle" id="contextSubtitle">
+            Select a context to preload current operational information.
+          </p>
+
+          <span class="status-pill pending" id="toolStatus">Tool Ready</span>
+
+          <div id="contextDetails"></div>
+
+          <div class="action-stack">
+            <a class="btn-primary" href="/smart-hands">
+              Open Smart Hands
+            </a>
+
+            <a class="btn" href="/connection-details">
+              Open Connection Details
+            </a>
+
+            <a class="btn" href="/connectivity-map">
+              Open Connectivity Map
+            </a>
+
+            <a class="btn" href="/multi-rack">
+              Open Multi-Rack View
+            </a>
+
+            <a class="btn" href="/dashboard">
+              Back to Operations Hub
+            </a>
+          </div>
+
+          <div class="notes-panel">
+            <strong>Tool Direction</strong>
+            <p id="toolNote">
+              These tools are intentionally separated from the dashboard so the main experience stays clean and modular.
+            </p>
+          </div>
+        </aside>
+
+      </section>
+
+    </main>
+  </div>
+
+  <script>
+    const toolLibrary = [
+      {
+        id: "smart-hands-request",
+        icon: "SH",
+        title: "Smart Hands Request",
+        tag: "Field",
+        description: "Generate a clean request for a technician with source, destination, cable runs and evidence requirements."
+      },
+      {
+        id: "cable-planner",
+        icon: "CB",
+        title: "Cable Planner",
+        tag: "Cable",
+        description: "Summarize required cable types, cable lengths and quantities by connection run."
+      },
+      {
+        id: "label-generator",
+        icon: "LB",
+        title: "Label Generator",
+        tag: "Labels",
+        description: "Generate cable labels for source, OH, MDF, backbone, patch and destination segments."
+      },
+      {
+        id: "validation-checklist",
+        icon: "VK",
+        title: "Validation Checklist",
+        tag: "QA",
+        description: "Create a checklist for labels, ports, VLAN, speed, optics, cable length and link validation."
+      },
+      {
+        id: "closure-draft",
+        icon: "CL",
+        title: "Closure Draft",
+        tag: "Report",
+        description: "Generate an end-of-task report draft for ticket update or operational handoff."
+      },
+      {
+        id: "materials-list",
+        icon: "ML",
+        title: "Materials List",
+        tag: "Prep",
+        description: "Create a technician material pickup list to avoid multiple trips to the storage room."
+      }
+    ];
+
+    const rivModel = {
+      companies: [
+        {
+          id: "romanoti",
+          name: "RomanoTI-Solutions Inc.",
+          datacenters: [
+            {
+              id: "demodc01",
+              name: "DemoDC-01",
+              contexts: [
+                {
+                  id: "ctx-core-app",
+                  name: "CORE-SW-01 Eth5 → SRV-APP-01 NIC1",
+                  ticketRef: "RIV-PILOT-1001",
+                  source: "CORE-SW-01 Eth5 / Rack R42 RU39",
+                  destination: "SRV-APP-01 NIC1 / Rack R42 RU19",
+                  speed: "10 Gbps",
+                  vlan: "120",
+                  status: "Operational",
+                  cableRuns: [
+                    {
+                      from: "CORE-SW-01 Eth5 / Rack R42 RU39",
+                      to: "OH-A12 Port 05 / Row A",
+                      cableUsed: "LC-LC MM Fiber patch",
+                      length: "3m",
+                      connector: "LC-LC / SFP+ SR",
+                      label: "R42-CORE-Eth5_to_OH-A12-05"
+                    },
+                    {
+                      from: "OH-A12 Port 05",
+                      to: "MDF-A Panel A Port 14",
+                      cableUsed: "LC-LC MM Fiber trunk",
+                      length: "8m",
+                      connector: "LC-LC",
+                      label: "OH-A12-05_to_MDF-A-A14"
+                    },
+                    {
+                      from: "MDF-A Panel A Port 14",
+                      to: "BB-01 Pair 07",
+                      cableUsed: "LC-LC MM Fiber backbone",
+                      length: "7m",
+                      connector: "LC-LC",
+                      label: "MDF-A-A14_to_BB-01-P07"
+                    },
+                    {
+                      from: "BB-01 Pair 07",
+                      to: "OH-B08 Port 09",
+                      cableUsed: "LC-LC MM Fiber trunk",
+                      length: "4m",
+                      connector: "LC-LC",
+                      label: "BB-01-P07_to_OH-B08-09"
+                    },
+                    {
+                      from: "OH-B08 Port 09",
+                      to: "SRV-APP-01 NIC1 / Rack R42 RU19",
+                      cableUsed: "LC-LC MM Fiber patch",
+                      length: "1m",
+                      connector: "LC-LC / SFP+ SR",
+                      label: "OH-B08-09_to_R42-SRVAPP-NIC1"
+                    }
+                  ]
+                },
+                {
+                  id: "ctx-core-fw",
+                  name: "CORE-SW-01 Eth14 → FW-01 Port 3",
+                  ticketRef: "RIV-PILOT-1002",
+                  source: "CORE-SW-01 Eth14 / Rack R42 RU39",
+                  destination: "FW-01 Port 3 / Rack R42 RU27",
+                  speed: "1 Gbps",
+                  vlan: "WAN / Edge",
+                  status: "Needs Review",
+                  cableRuns: [
+                    {
+                      from: "CORE-SW-01 Eth14 / Rack R42 RU39",
+                      to: "OH-A12 Port 14 / Row A",
+                      cableUsed: "Cat6A patch lead",
+                      length: "2m",
+                      connector: "RJ45",
+                      label: "R42-CORE-Eth14_to_OH-A12-14"
+                    },
+                    {
+                      from: "OH-A12 Port 14",
+                      to: "MDF-A Panel A Port 23",
+                      cableUsed: "Cat6A trunk",
+                      length: "5m",
+                      connector: "RJ45",
+                      label: "OH-A12-14_to_MDF-A-A23"
+                    },
+                    {
+                      from: "MDF-A Panel A Port 23",
+                      to: "Patch-CAB-23",
+                      cableUsed: "Cat6A patch lead",
+                      length: "2m",
+                      connector: "RJ45",
+                      label: "MDF-A-A23_to_PATCH-CAB-23"
+                    },
+                    {
+                      from: "Patch-CAB-23",
+                      to: "OH-B03 Port 03",
+                      cableUsed: "Cat6A trunk",
+                      length: "3m",
+                      connector: "RJ45",
+                      label: "PATCH-CAB-23_to_OH-B03-03"
+                    },
+                    {
+                      from: "OH-B03 Port 03",
+                      to: "FW-01 Port 3 / Rack R42 RU27",
+                      cableUsed: "Cat6A patch lead",
+                      length: "2m",
+                      connector: "RJ45",
+                      label: "OH-B03-03_to_R42-FW01-P3"
+                    }
+                  ]
+                },
+                {
+                  id: "ctx-storage-backup",
+                  name: "STORAGE-01 iSCSI1 → BACKUP-01 ETH3",
+                  ticketRef: "RIV-PILOT-1003",
+                  source: "STORAGE-01 iSCSI1 / Rack R42 RU15",
+                  destination: "BACKUP-01 ETH3 / Rack R44 RU34",
+                  speed: "10 Gbps",
+                  vlan: "150",
+                  status: "Operational",
+                  cableRuns: [
+                    {
+                      from: "STORAGE-01 iSCSI1 / Rack R42 RU15",
+                      to: "OH-A09 Port 11",
+                      cableUsed: "LC-LC MM Fiber patch",
+                      length: "4m",
+                      connector: "LC-LC / SFP+ SR",
+                      label: "R42-STORAGE-iSCSI1_to_OH-A09-11"
+                    },
+                    {
+                      from: "OH-A09 Port 11",
+                      to: "MDF-A Panel S Port 04",
+                      cableUsed: "LC-LC MM Fiber trunk",
+                      length: "9m",
+                      connector: "LC-LC",
+                      label: "OH-A09-11_to_MDF-A-S04"
+                    },
+                    {
+                      from: "MDF-A Panel S Port 04",
+                      to: "BB-STOR-02 Pair 12",
+                      cableUsed: "LC-LC MM Fiber backbone",
+                      length: "11m",
+                      connector: "LC-LC",
+                      label: "MDF-A-S04_to_BB-STOR-02-P12"
+                    },
+                    {
+                      from: "BB-STOR-02 Pair 12",
+                      to: "OH-C04 Port 18",
+                      cableUsed: "LC-LC MM Fiber trunk",
+                      length: "5m",
+                      connector: "LC-LC",
+                      label: "BB-STOR-02-P12_to_OH-C04-18"
+                    },
+                    {
+                      from: "OH-C04 Port 18",
+                      to: "BACKUP-01 ETH3 / Rack R44 RU34",
+                      cableUsed: "LC-LC MM Fiber patch",
+                      length: "2m",
+                      connector: "LC-LC / SFP+ SR",
+                      label: "OH-C04-18_to_R44-BACKUP-ETH3"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    };
+
+    const $ = (id) => document.getElementById(id);
+
+    let activeCompany = null;
+    let activeDatacenter = null;
+    let activeContext = null;
+    let activeTool = toolLibrary[0];
+
+    document.addEventListener("DOMContentLoaded", () => {
+      loadSessionInfo();
+      initWorkspace();
+      attachEvents();
+      applySessionContext();
+      renderTools();
+      loadContext();
+      selectTool(activeTool.id);
+    });
+
+    function initWorkspace() {
+      $("companySelect").innerHTML = rivModel.companies
+        .map((company) => `<option value="${escapeHtml(company.id)}">${escapeHtml(company.name)}</option>`)
+        .join("");
+
+      activeCompany = rivModel.companies[0];
+
+      populateDatacenters();
+      activeDatacenter = activeCompany.datacenters[0];
+      $("datacenterSelect").value = activeDatacenter.id;
+
+      populateContexts();
+      activeContext = activeDatacenter.contexts[0];
+      $("contextSelect").value = activeContext.id;
+    }
+
+    function populateDatacenters() {
+      $("datacenterSelect").innerHTML = activeCompany.datacenters
+        .map((dc) => `<option value="${escapeHtml(dc.id)}">${escapeHtml(dc.name)}</option>`)
+        .join("");
+    }
+
+    function populateContexts() {
+      $("contextSelect").innerHTML = activeDatacenter.contexts
+        .map((context) => `<option value="${escapeHtml(context.id)}">${escapeHtml(context.name)}</option>`)
+        .join("");
+    }
+
+    function attachEvents() {
+      $("companySelect").addEventListener("change", () => {
+        activeCompany = rivModel.companies.find((company) => company.id === $("companySelect").value) || rivModel.companies[0];
+
+        populateDatacenters();
+        activeDatacenter = activeCompany.datacenters[0];
+        $("datacenterSelect").value = activeDatacenter.id;
+
+        populateContexts();
+        activeContext = activeDatacenter.contexts[0];
+        $("contextSelect").value = activeContext.id;
+
+        loadContext();
+      });
+
+      $("datacenterSelect").addEventListener("change", () => {
+        activeDatacenter = activeCompany.datacenters.find((dc) => dc.id === $("datacenterSelect").value) || activeCompany.datacenters[0];
+
+        populateContexts();
+        activeContext = activeDatacenter.contexts[0];
+        $("contextSelect").value = activeContext.id;
+
+        loadContext();
+      });
+
+      $("contextSelect").addEventListener("change", () => {
+        activeContext = activeDatacenter.contexts.find((context) => context.id === $("contextSelect").value) || activeDatacenter.contexts[0];
+        loadContext();
+      });
+
+      $("loadContextBtn").addEventListener("click", loadContext);
+      $("generateBtn").addEventListener("click", generateOutput);
+      $("copyOutputBtn").addEventListener("click", copyOutput);
+      $("resetOutputBtn").addEventListener("click", () => {
+        $("toolOutput").value = "";
+        $("outputTitle").textContent = "No output generated";
+        $("outputDescription").textContent = "Generate an output from the selected tool.";
+        $("outputMetric").textContent = "Ready";
+      });
+    }
+
+    function applySessionContext() {
+      let sessionContext = {};
+
+      try {
+        sessionContext = JSON.parse(sessionStorage.getItem("rivSelectedContext") || "{}");
+      } catch {
+        sessionContext = {};
+      }
+
+      const combined = [
+        sessionContext.connectionName,
+        sessionContext.pathName,
+        sessionContext.taskTitle,
+        sessionContext.source,
+        sessionContext.destination,
+        sessionContext.sourceDevice,
+        sessionContext.destinationDevice
+      ].filter(Boolean).join(" ").toLowerCase();
+
+      if (!combined) {
+        return;
+      }
+
+      const match = activeDatacenter.contexts.find((context) => {
+        const haystack = [
+          context.name,
+          context.source,
+          context.destination,
+          context.ticketRef
+        ].join(" ").toLowerCase();
+
+        return combined.split(/\s+/).some((token) => token.length > 2 && haystack.includes(token));
+      });
+
+      if (match) {
+        activeContext = match;
+        $("contextSelect").value = activeContext.id;
+      }
+    }
+
+    function renderTools() {
+      $("toolGrid").innerHTML = toolLibrary.map((tool) => `
+        <article class="tool-card" data-tool-id="${escapeHtml(tool.id)}">
+          <span>${escapeHtml(tool.tag)}</span>
+          <div class="tool-icon">${escapeHtml(tool.icon)}</div>
+          <h3>${escapeHtml(tool.title)}</h3>
+          <p>${escapeHtml(tool.description)}</p>
+        </article>
+      `).join("");
+
+      document.querySelectorAll("[data-tool-id]").forEach((card) => {
+        card.addEventListener("click", () => {
+          selectTool(card.dataset.toolId);
+        });
+      });
+
+      $("toolsMetric").textContent = toolLibrary.length;
+    }
+
+    function selectTool(toolId) {
+      activeTool = toolLibrary.find((tool) => tool.id === toolId) || toolLibrary[0];
+
+      document.querySelectorAll("[data-tool-id]").forEach((card) => {
+        card.classList.toggle("active", card.dataset.toolId === activeTool.id);
+      });
+
+      $("builderTitle").textContent = activeTool.title;
+      $("builderDescription").textContent = activeTool.description;
+      $("selectedToolMetric").textContent = activeTool.tag;
+      $("toolStatus").textContent = `${activeTool.title} Ready`;
+      $("toolNote").textContent = activeTool.description;
+      $("outputMetric").textContent = "Ready";
+    }
+
+    function loadContext() {
+      if (!activeCompany || !activeDatacenter || !activeContext) {
+        return;
+      }
+
+      $("sideSite").textContent = activeDatacenter.name;
+      $("contextTitle").textContent = activeContext.name;
+      $("contextSubtitle").textContent = `${activeContext.ticketRef} · ${activeContext.status}`;
+
+      $("ticketRef").value = activeContext.ticketRef;
+      $("sourceInput").value = activeContext.source;
+      $("destinationInput").value = activeContext.destination;
+
+      $("notesInput").value = `Use validated RIV connection details.
+Status: ${activeContext.status}
+Speed: ${activeContext.speed}
+VLAN: ${activeContext.vlan}
+Confirm labels, cable length, connector type and link LED after patching.`;
+
+      $("runsMetric").textContent = activeContext.cableRuns.length;
+      $("lengthMetric").textContent = `${calculateTotalMeters(activeContext)}m`;
+
+      $("contextDetails").innerHTML = `
+        <div class="detail-row">
+          <span>Ticket</span>
+          <strong>${escapeHtml(activeContext.ticketRef)}</strong>
+        </div>
+
+        <div class="detail-row">
+          <span>Source</span>
+          <strong>${escapeHtml(activeContext.source)}</strong>
+        </div>
+
+        <div class="detail-row">
+          <span>Destination</span>
+          <strong>${escapeHtml(activeContext.destination)}</strong>
+        </div>
+
+        <div class="detail-row">
+          <span>Speed / VLAN</span>
+          <strong>${escapeHtml(activeContext.speed)} · VLAN ${escapeHtml(activeContext.vlan)}</strong>
+        </div>
+
+        <div class="detail-row">
+          <span>Materials Summary</span>
+          <div class="compact-list">
+            ${Object.entries(getCableTotals(activeContext)).map(([cableType, data]) => `
+              <div class="compact-row">
+                <strong>${escapeHtml(cableType)} · ${data.count} run${data.count === 1 ? "" : "s"}</strong>
+                <span>${data.meters}m</span>
+              </div>
+            `).join("")}
+          </div>
+        </div>
+      `;
+
+      saveSelectedContext();
+    }
+
+    function generateOutput() {
+      let output = "";
+
+      if (activeTool.id === "smart-hands-request") {
+        output = generateSmartHandsRequest();
+      }
+
+      if (activeTool.id === "cable-planner") {
+        output = generateCablePlanner();
+      }
+
+      if (activeTool.id === "label-generator") {
+        output = generateLabelOutput();
+      }
+
+      if (activeTool.id === "validation-checklist") {
+        output = generateValidationChecklist();
+      }
+
+      if (activeTool.id === "closure-draft") {
+        output = generateClosureDraft();
+      }
+
+      if (activeTool.id === "materials-list") {
+        output = generateMaterialsList();
+      }
+
+      $("toolOutput").value = output;
+      $("outputTitle").textContent = `${activeTool.title} Output`;
+      $("outputDescription").textContent = `Generated using ${activeContext.name}.`;
+      $("outputMetric").textContent = "Generated";
+    }
+
+    function generateSmartHandsRequest() {
+      return `Romanoti RIV - Smart Hands Request
+
+Ticket:
+${$("ticketRef").value}
+
+Operator / Technician:
+${$("operatorName").value}
+
+Source:
+${$("sourceInput").value}
+
+Destination:
+${$("destinationInput").value}
+
+Speed / VLAN:
+${activeContext.speed} / VLAN ${activeContext.vlan}
+
+Task Requirements:
+${$("notesInput").value}
+
+Cable Run Sheet:
+${formatCableRuns(activeContext)}
+
+Evidence Required:
+1. Source port photo with label visible.
+2. Destination port photo with label visible.
+3. Intermediate OH/MDF label confirmation when applicable.
+4. Link LED or interface status after completion.
+5. Technician completion notes.
+
+Execution Rule:
+Follow the cable runs in order. Do not skip intermediate OH, MDF, backbone or patch points.
+`;
+    }
+
+    function generateCablePlanner() {
+      return `Romanoti RIV - Cable Planner
+
+Context:
+${activeContext.name}
+
+Total Cable Length:
+${calculateTotalMeters(activeContext)}m
+
+Cable Totals by Type:
+${formatCableTotals(activeContext)}
+
+Connection-to-Connection Cable Runs:
+${formatCableRuns(activeContext)}
+
+Pickup Recommendation:
+Collect all listed cable types and lengths before entering the data hall to avoid repeated trips.
+`;
+    }
+
+    function generateLabelOutput() {
+      return `Romanoti RIV - Cable Label Generator
+
+Context:
+${activeContext.name}
+
+Labels:
+${activeContext.cableRuns.map((run, index) => {
+  return `${index + 1}. ${run.label}
+   From: ${run.from}
+   To: ${run.to}
+   Cable: ${run.cableUsed}
+   Length: ${run.length}`;
+}).join("\n\n")}
+
+Label Rule:
+Apply labels before final routing when possible and verify labels after both ends are connected.
+`;
+    }
+
+    function generateValidationChecklist() {
+      return `Romanoti RIV - Validation Checklist
+
+Context:
+${activeContext.name}
+Ticket: ${$("ticketRef").value}
+
+Pre-Work:
+[ ] Confirm change window / authorization.
+[ ] Confirm source rack, RU, device and port.
+[ ] Confirm destination rack, RU, device and port.
+[ ] Confirm cable type and connector.
+[ ] Confirm required length per connection-to-connection run.
+
+Execution:
+[ ] Follow cable run sheet in order.
+[ ] Confirm OH / MDF / backbone / patch labels.
+[ ] Apply or verify cable labels.
+[ ] Avoid undocumented ports or substitutions.
+
+Post-Work:
+[ ] Confirm link LED.
+[ ] Confirm speed: ${activeContext.speed}.
+[ ] Confirm VLAN: ${activeContext.vlan}.
+[ ] Capture source photo.
+[ ] Capture destination photo.
+[ ] Capture any intermediate label evidence.
+[ ] Record final technician notes.
+`;
+    }
+
+    function generateClosureDraft() {
+      return `Romanoti RIV - Closure Draft
+
+Ticket:
+${$("ticketRef").value}
+
+Context:
+${activeContext.name}
+
+Source:
+${$("sourceInput").value}
+
+Destination:
+${$("destinationInput").value}
+
+Status:
+${activeContext.status}
+
+Cable Runs Completed / Reviewed:
+${formatCableRuns(activeContext)}
+
+Cable Totals:
+${formatCableTotals(activeContext)}
+
+Validation:
+- Source and destination were reviewed.
+- Required cable types and lengths were checked.
+- Labels were generated / reviewed.
+- Link validation evidence should be attached before ticket closure.
+
+Technician Notes:
+${$("notesInput").value}
+`;
+    }
+
+    function generateMaterialsList() {
+      return `Romanoti RIV - Materials Pickup List
+
+Context:
+${activeContext.name}
+
+Required Materials:
+${formatCableTotals(activeContext)}
+
+Detailed Runs:
+${activeContext.cableRuns.map((run, index) => {
+  return `${index + 1}. ${run.cableUsed} / ${run.length} / ${run.connector}
+   Label: ${run.label}`;
+}).join("\n\n")}
+
+Additional Items:
+- Approved labels / label printer.
+- Fiber cleaning kit if fiber is used.
+- Cable ties / Velcro.
+- Technician mobile device for evidence capture.
+- Flashlight if rack visibility is limited.
+`;
+    }
+
+    function formatCableRuns(context) {
+      return context.cableRuns.map((run, index) => {
+        return `${index + 1}. ${run.from} -> ${run.to}
+   Cable Used: ${run.cableUsed}
+   Required Length: ${run.length}
+   Connector: ${run.connector}
+   Label: ${run.label}`;
+      }).join("\n\n");
+    }
+
+    function formatCableTotals(context) {
+      return Object.entries(getCableTotals(context)).map(([cableType, data]) => {
+        return `- ${cableType}: ${data.count} run${data.count === 1 ? "" : "s"} / ${data.meters}m total`;
+      }).join("\n");
+    }
+
+    async function copyOutput() {
+      if (!$("toolOutput").value.trim()) {
+        generateOutput();
+      }
+
+      try {
+        await navigator.clipboard.writeText($("toolOutput").value);
+        showToast("Tool output copied to clipboard.");
+      } catch {
+        $("toolOutput").select();
+        document.execCommand("copy");
+        showToast("Tool output copied.");
+      }
+    }
+
+    function saveSelectedContext() {
+      const context = {
+        company: activeCompany.name,
+        datacenter: activeDatacenter.name,
+        currentTool: activeTool.title,
+        contextName: activeContext.name,
+        ticketRef: activeContext.ticketRef,
+        source: activeContext.source,
+        destination: activeContext.destination,
+        speed: activeContext.speed,
+        vlan: activeContext.vlan,
+        cableRuns: activeContext.cableRuns,
+        cableTotals: getCableTotals(activeContext),
+        totalCableLength: `${calculateTotalMeters(activeContext)}m`
+      };
+
+      sessionStorage.setItem("rivSelectedContext", JSON.stringify(context));
+    }
+
+    function getCableTotals(context) {
+      return context.cableRuns.reduce((totals, run) => {
+        const cableType = run.cableUsed || "Unspecified cable";
+        const meters = parseCableLengthMeters(run.length);
+
+        if (!totals[cableType]) {
+          totals[cableType] = {
+            count: 0,
+            meters: 0
+          };
+        }
+
+        totals[cableType].count += 1;
+        totals[cableType].meters += meters;
+
+        return totals;
+      }, {});
+    }
+
+    function calculateTotalMeters(context) {
+      return context.cableRuns.reduce((total, run) => {
+        return total + parseCableLengthMeters(run.length);
+      }, 0);
+    }
+
+    function parseCableLengthMeters(value) {
+      const match = String(value || "").match(/([\d.]+)\s*m/i);
+      return match ? Number(match[1]) : 0;
+    }
+
+    function showToast(message) {
+      $("toastMessage").textContent = message;
+      $("toastMessage").classList.add("show");
+
+      window.setTimeout(() => {
+        $("toastMessage").classList.remove("show");
+      }, 2200);
+    }
+
+    async function loadSessionInfo() {
+      try {
+        const response = await fetch("/api/session", { credentials: "same-origin" });
+
+        if (!response.ok) {
+          return;
+        }
+
+        const session = await response.json();
+
+        if (session.display_name) {
+          $("displayName").textContent = session.display_name;
+          $("userInitials").textContent = getInitials(session.display_name);
+        }
+
+        if (session.display_role) {
+          $("displayRole").textContent = session.display_role;
+        }
+      } catch {
+        // The module remains usable even if session metadata is unavailable.
+      }
+    }
+
+    function getInitials(name) {
+      return String(name || "")
+        .trim()
+        .split(/\s+/)
+        .slice(0, 2)
+        .map((part) => part.charAt(0).toUpperCase())
+        .join("") || "MR";
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+  </script>
+</body>
+</html>
