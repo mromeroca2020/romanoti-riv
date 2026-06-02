@@ -1,0 +1,2131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- =======================================================
+       Romanoti RIV - Smart Hands
+       File: src/web/smart-hands.html
+
+       Purpose:
+       Dedicated protected module for guided Smart Hands
+       execution based on a validated RIV connection.
+
+       Product direction:
+       - Keep the dashboard clean.
+       - Convert technical connection details into field-ready
+         step-by-step technician instructions.
+       - Include cable runs, required materials, validation checks,
+         evidence capture placeholders and closure summary.
+       - Prepare future backend/API integration.
+
+       Current stage:
+       - Standalone demo model.
+       - Reads context from URL/sessionStorage when available.
+       - Generates a closure report draft in the browser.
+       - Later this page should save tasks, evidence and reports
+         through the RIV backend.
+       ======================================================= -->
+
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>Romanoti RIV - Smart Hands</title>
+
+  <style>
+    :root {
+      --bg: #071225;
+      --panel: rgba(255, 255, 255, 0.065);
+      --border: rgba(255, 255, 255, 0.12);
+      --border-strong: rgba(255, 255, 255, 0.20);
+      --text: #ffffff;
+      --muted: rgba(255, 255, 255, 0.66);
+      --soft: rgba(255, 255, 255, 0.46);
+      --gold: #f3dfad;
+      --gold-strong: #fbbf24;
+      --blue: #38bdf8;
+      --green: #22c55e;
+      --yellow: #f59e0b;
+      --red: #ef4444;
+      --purple: #a78bfa;
+      --radius: 24px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Arial, Helvetica, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(56, 189, 248, 0.13), transparent 32%),
+        radial-gradient(circle at top right, rgba(251, 191, 36, 0.08), transparent 28%),
+        linear-gradient(135deg, #071225 0%, #0d1b31 52%, #050b14 100%);
+    }
+
+    a {
+      color: inherit;
+    }
+
+    button,
+    select,
+    textarea,
+    input {
+      font-family: inherit;
+    }
+
+    .shell {
+      display: grid;
+      grid-template-columns: 280px minmax(0, 1fr);
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      padding: 28px 20px;
+      background: rgba(5, 12, 24, 0.96);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .brand-mark {
+      width: 54px;
+      height: 54px;
+      border-radius: 16px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, #6366f1, #ef4444);
+      font-size: 28px;
+      font-weight: 900;
+      box-shadow: 0 18px 36px rgba(239, 68, 68, 0.25);
+    }
+
+    .brand-title {
+      font-size: 24px;
+      font-weight: 900;
+      letter-spacing: -0.04em;
+      line-height: 1;
+    }
+
+    .brand-subtitle {
+      margin-top: 5px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .nav {
+      display: grid;
+      gap: 8px;
+    }
+
+    .nav a {
+      text-decoration: none;
+      padding: 13px 15px;
+      border-radius: 14px;
+      color: rgba(255, 255, 255, 0.74);
+      font-size: 14px;
+      font-weight: 800;
+    }
+
+    .nav a:hover {
+      background: rgba(255, 255, 255, 0.075);
+      color: #ffffff;
+    }
+
+    .nav a.active {
+      background: rgba(56, 189, 248, 0.16);
+      border: 1px solid rgba(56, 189, 248, 0.30);
+      color: #ffffff;
+    }
+
+    .sidebar-spacer {
+      flex: 1;
+    }
+
+    .mini-card {
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.055);
+      border-radius: 18px;
+      padding: 16px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    .mini-card strong {
+      display: block;
+      color: #ffffff;
+      margin-bottom: 4px;
+    }
+
+    .status-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .status-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 999px;
+      background: var(--green);
+      box-shadow: 0 0 0 5px rgba(34, 197, 94, 0.13);
+    }
+
+    .main {
+      padding: 32px;
+      min-width: 0;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      gap: 24px;
+      align-items: flex-start;
+      margin-bottom: 24px;
+    }
+
+    .eyebrow {
+      margin: 0 0 8px;
+      color: #a9c7ff;
+      font-size: 13px;
+      font-weight: 900;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(36px, 4vw, 56px);
+      line-height: 0.96;
+      letter-spacing: -0.055em;
+    }
+
+    .lead {
+      margin: 12px 0 0;
+      max-width: 940px;
+      color: var(--muted);
+      line-height: 1.55;
+      font-size: 16px;
+    }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-shrink: 0;
+    }
+
+    .user-pill {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 11px 15px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.075);
+      border: 1px solid var(--border);
+    }
+
+    .avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 999px;
+      background: rgba(56, 189, 248, 0.20);
+      display: grid;
+      place-items: center;
+      font-weight: 900;
+    }
+
+    .user-pill strong {
+      display: block;
+      font-size: 14px;
+    }
+
+    .user-pill span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 2px;
+    }
+
+    .btn,
+    .btn-primary,
+    .btn-ghost,
+    .btn-danger,
+    .btn-success {
+      min-height: 44px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      padding: 12px 17px;
+      font-weight: 900;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      white-space: nowrap;
+    }
+
+    .btn {
+      color: #ffffff;
+      background: rgba(255, 255, 255, 0.075);
+    }
+
+    .btn-primary {
+      border: none;
+      color: #071225;
+      background: linear-gradient(135deg, var(--gold), var(--gold-strong));
+    }
+
+    .btn-ghost {
+      color: var(--gold);
+      background: transparent;
+      border-color: rgba(243, 223, 173, 0.30);
+    }
+
+    .btn-danger {
+      color: #fecaca;
+      background: rgba(239, 68, 68, 0.10);
+      border-color: rgba(239, 68, 68, 0.22);
+    }
+
+    .btn-success {
+      color: #bbf7d0;
+      background: rgba(34, 197, 94, 0.12);
+      border-color: rgba(34, 197, 94, 0.24);
+    }
+
+    .workspace {
+      border-radius: 28px;
+      padding: 22px;
+      margin-bottom: 20px;
+      border: 1px solid var(--border);
+      background:
+        radial-gradient(circle at top right, rgba(56, 189, 248, 0.10), transparent 34%),
+        linear-gradient(145deg, rgba(255,255,255,0.085), rgba(255,255,255,0.045));
+    }
+
+    .workspace-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1.25fr auto;
+      gap: 14px;
+      align-items: end;
+    }
+
+    .field {
+      display: grid;
+      gap: 7px;
+    }
+
+    .field label {
+      color: rgba(255,255,255,0.72);
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: 0.10em;
+      text-transform: uppercase;
+    }
+
+    select,
+    textarea,
+    input {
+      width: 100%;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,0.14);
+      background: rgba(2, 8, 18, 0.88);
+      color: #ffffff;
+      font-weight: 800;
+      outline: none;
+    }
+
+    select,
+    input {
+      min-height: 46px;
+      padding: 12px 14px;
+    }
+
+    textarea {
+      min-height: 260px;
+      resize: vertical;
+      padding: 14px;
+      line-height: 1.5;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+
+    .metric-card {
+      border-radius: 22px;
+      padding: 20px;
+      background: rgba(255, 255, 255, 0.060);
+      border: 1px solid var(--border);
+    }
+
+    .metric-card span {
+      display: block;
+      color: var(--soft);
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      margin-bottom: 9px;
+    }
+
+    .metric-card strong {
+      display: block;
+      font-size: 26px;
+      line-height: 1;
+      letter-spacing: -0.04em;
+    }
+
+    .module-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 420px;
+      gap: 18px;
+      align-items: start;
+    }
+
+    .panel {
+      border-radius: var(--radius);
+      background: linear-gradient(145deg, rgba(255,255,255,0.070), rgba(255,255,255,0.040));
+      border: 1px solid var(--border);
+      box-shadow: 0 18px 55px rgba(0,0,0,0.18);
+    }
+
+    .panel-pad {
+      padding: 22px;
+    }
+
+    .panel-title {
+      margin: 0 0 16px;
+      color: #a9c7ff;
+      font-size: 13px;
+      font-weight: 900;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+    }
+
+    .task-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 18px;
+      align-items: flex-start;
+      margin-bottom: 18px;
+    }
+
+    .task-header h2 {
+      margin: 0;
+      font-size: 30px;
+      letter-spacing: -0.045em;
+    }
+
+    .task-header p {
+      margin: 8px 0 0;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 13px;
+      border-radius: 999px;
+      color: #86efac;
+      background: rgba(34,197,94,0.16);
+      border: 1px solid rgba(34,197,94,0.28);
+      font-size: 13px;
+      font-weight: 900;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .status-pill.warning {
+      color: #fde68a;
+      background: rgba(245,158,11,0.16);
+      border-color: rgba(245,158,11,0.34);
+    }
+
+    .status-pill.pending {
+      color: #bae6fd;
+      background: rgba(56,189,248,0.16);
+      border-color: rgba(56,189,248,0.34);
+    }
+
+    .status-pill.blocked {
+      color: #fecaca;
+      background: rgba(239,68,68,0.16);
+      border-color: rgba(239,68,68,0.34);
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+
+    .summary-card {
+      border-radius: 18px;
+      padding: 16px;
+      background: rgba(255,255,255,0.055);
+      border: 1px solid rgba(255,255,255,0.09);
+    }
+
+    .summary-card span {
+      display: block;
+      color: var(--soft);
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: 0.10em;
+      text-transform: uppercase;
+      margin-bottom: 7px;
+    }
+
+    .summary-card strong {
+      display: block;
+      color: #ffffff;
+      font-size: 14px;
+      line-height: 1.45;
+    }
+
+    .section-gap {
+      margin-top: 18px;
+    }
+
+    .step-list {
+      display: grid;
+      gap: 12px;
+    }
+
+    .step-card {
+      display: grid;
+      grid-template-columns: 44px minmax(0, 1fr) auto;
+      gap: 14px;
+      align-items: start;
+      padding: 15px;
+      border-radius: 18px;
+      background: rgba(255,255,255,0.055);
+      border: 1px solid rgba(255,255,255,0.09);
+      transition: border-color 0.16s ease, background 0.16s ease;
+    }
+
+    .step-card.complete {
+      border-color: rgba(34,197,94,0.32);
+      background:
+        radial-gradient(circle at top right, rgba(34,197,94,0.12), transparent 40%),
+        rgba(255,255,255,0.055);
+    }
+
+    .step-index {
+      width: 40px;
+      height: 40px;
+      border-radius: 999px;
+      display: grid;
+      place-items: center;
+      background: rgba(56,189,248,0.16);
+      color: #bae6fd;
+      font-weight: 900;
+    }
+
+    .step-card.complete .step-index {
+      background: rgba(34,197,94,0.16);
+      color: #bbf7d0;
+    }
+
+    .step-content h3 {
+      margin: 0 0 6px;
+      font-size: 16px;
+    }
+
+    .step-content p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.5;
+      font-size: 14px;
+    }
+
+    .step-content small {
+      display: block;
+      color: var(--gold);
+      margin-top: 8px;
+      line-height: 1.4;
+      font-weight: 800;
+    }
+
+    .step-toggle {
+      min-width: 118px;
+      min-height: 38px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.075);
+      color: #ffffff;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .step-card.complete .step-toggle {
+      color: #bbf7d0;
+      background: rgba(34,197,94,0.13);
+      border-color: rgba(34,197,94,0.30);
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      border-radius: 20px;
+      border: 1px solid rgba(255,255,255,0.10);
+      background: rgba(2, 8, 18, 0.30);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 1040px;
+    }
+
+    th,
+    td {
+      text-align: left;
+      padding: 13px 14px;
+      border-bottom: 1px solid rgba(255,255,255,0.075);
+      vertical-align: top;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    th {
+      color: rgba(255,255,255,0.72);
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: 0.11em;
+      text-transform: uppercase;
+      background: rgba(255,255,255,0.045);
+    }
+
+    td strong {
+      display: block;
+      color: #ffffff;
+      margin-bottom: 2px;
+    }
+
+    td small {
+      color: var(--muted);
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    .run-id {
+      display: inline-grid;
+      place-items: center;
+      width: 30px;
+      height: 30px;
+      border-radius: 999px;
+      background: rgba(243, 223, 173, 0.14);
+      color: var(--gold);
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .evidence-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .evidence-card {
+      border-radius: 18px;
+      padding: 16px;
+      background: rgba(255,255,255,0.055);
+      border: 1px solid rgba(255,255,255,0.09);
+    }
+
+    .evidence-card h3 {
+      margin: 0 0 9px;
+      font-size: 15px;
+    }
+
+    .evidence-card p {
+      margin: 0 0 12px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .fake-upload {
+      min-height: 78px;
+      display: grid;
+      place-items: center;
+      border-radius: 14px;
+      border: 1px dashed rgba(255,255,255,0.20);
+      color: rgba(255,255,255,0.64);
+      font-size: 12px;
+      font-weight: 900;
+      text-align: center;
+      padding: 10px;
+      background: rgba(2, 8, 18, 0.24);
+    }
+
+    .detail-panel h2 {
+      margin: 0;
+      font-size: 28px;
+      letter-spacing: -0.04em;
+    }
+
+    .detail-subtitle {
+      color: var(--muted);
+      margin: 7px 0 0;
+      line-height: 1.45;
+    }
+
+    .right-status {
+      margin: 16px 0;
+    }
+
+    .detail-row {
+      padding: 13px 0;
+      border-top: 1px solid rgba(255,255,255,0.075);
+    }
+
+    .detail-row span {
+      display: block;
+      color: var(--soft);
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: 0.10em;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    .detail-row strong {
+      display: block;
+      color: #ffffff;
+      font-size: 14px;
+      line-height: 1.45;
+    }
+
+    .compact-list {
+      display: grid;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .compact-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: center;
+      padding: 11px 12px;
+      border-radius: 14px;
+      background: rgba(255,255,255,0.055);
+      border: 1px solid rgba(255,255,255,0.08);
+      font-size: 13px;
+    }
+
+    .compact-row strong {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .compact-row span {
+      color: var(--gold);
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    .action-stack {
+      display: grid;
+      gap: 10px;
+      margin-top: 18px;
+      padding-top: 18px;
+      border-top: 1px solid rgba(255,255,255,0.075);
+    }
+
+    .action-stack a,
+    .action-stack button {
+      width: 100%;
+    }
+
+    .notes-panel {
+      margin-top: 18px;
+      border-radius: 20px;
+      padding: 18px;
+      background: rgba(243, 223, 173, 0.08);
+      border: 1px solid rgba(243, 223, 173, 0.20);
+    }
+
+    .notes-panel strong {
+      display: block;
+      color: var(--gold);
+      margin-bottom: 8px;
+    }
+
+    .notes-panel p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.55;
+      font-size: 14px;
+    }
+
+    .closure-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .toast {
+      display: none;
+      margin-top: 10px;
+      border-radius: 14px;
+      padding: 11px 12px;
+      color: #bbf7d0;
+      background: rgba(34,197,94,0.12);
+      border: 1px solid rgba(34,197,94,0.24);
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .toast.show {
+      display: block;
+    }
+
+    .focus-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-top: 18px;
+    }
+
+    .focus-card {
+      padding: 18px;
+      border-radius: 20px;
+      background: rgba(255,255,255,0.055);
+      border: 1px solid var(--border);
+    }
+
+    .focus-card h3 {
+      margin: 0 0 8px;
+      font-size: 16px;
+    }
+
+    .focus-card p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.5;
+      font-size: 14px;
+    }
+
+    @media (max-width: 1360px) {
+      .module-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .metric-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 1050px) {
+      .shell {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        position: relative;
+        height: auto;
+      }
+
+      .workspace-grid,
+      .summary-grid,
+      .evidence-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .focus-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .main {
+        padding: 20px;
+      }
+
+      .topbar,
+      .task-header {
+        flex-direction: column;
+      }
+
+      .top-actions {
+        flex-wrap: wrap;
+      }
+
+      .metric-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .step-card {
+        grid-template-columns: 44px minmax(0, 1fr);
+      }
+
+      .step-toggle {
+        grid-column: 1 / -1;
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="shell">
+
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">R</div>
+        <div>
+          <div class="brand-title">Romanoti RIV</div>
+          <div class="brand-subtitle">Infrastructure Visualizer</div>
+        </div>
+      </div>
+
+      <nav class="nav">
+        <a href="/dashboard">Operations Hub</a>
+        <a href="/rack-view">Rack View</a>
+        <a href="/multi-rack">Multi-Rack View</a>
+        <a href="/connectivity-map">Connectivity Map</a>
+        <a href="/connection-details">Connection Details</a>
+        <a href="/smart-hands" class="active">Smart Hands</a>
+        <a href="/current-tools">Current Tools</a>
+      </nav>
+
+      <div class="sidebar-spacer"></div>
+
+      <div class="mini-card">
+        <div class="status-row">
+          <span class="status-dot"></span>
+          <div>
+            <strong id="sideSite">DemoDC-01</strong>
+            <span>Protected pilot environment</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="mini-card">
+        <strong>RIV Pilot v1.2</strong>
+        <span>Guided Smart Hands workflow with evidence and closure draft.</span>
+      </div>
+    </aside>
+
+    <main class="main">
+
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Romanoti Infrastructure Visualizer</p>
+          <h1>Smart Hands</h1>
+          <p class="lead">
+            Convert a validated connection into guided technician work:
+            cable runs, rack/RU details, exact ports, instructions, evidence capture,
+            completion checks and closure summary.
+          </p>
+        </div>
+
+        <div class="top-actions">
+          <div class="user-pill">
+            <div class="avatar" id="userInitials">MR</div>
+            <div>
+              <strong id="displayName">Mauricio Romero</strong>
+              <span id="displayRole">Romanoti Admin</span>
+            </div>
+          </div>
+
+          <a class="btn" href="/logout">Logout</a>
+        </div>
+      </header>
+
+      <section class="workspace">
+        <p class="eyebrow">Workspace Selection</p>
+
+        <div class="workspace-grid">
+          <div class="field">
+            <label for="companySelect">Company</label>
+            <select id="companySelect"></select>
+          </div>
+
+          <div class="field">
+            <label for="datacenterSelect">Data Center</label>
+            <select id="datacenterSelect"></select>
+          </div>
+
+          <div class="field">
+            <label for="taskSelect">Smart Hands Task</label>
+            <select id="taskSelect"></select>
+          </div>
+
+          <button class="btn-primary" id="loadTaskBtn" type="button">
+            Load Task
+          </button>
+        </div>
+      </section>
+
+      <section class="metric-grid">
+        <article class="metric-card">
+          <span>Task Status</span>
+          <strong id="taskStatusMetric">Ready</strong>
+        </article>
+
+        <article class="metric-card">
+          <span>Workflow Steps</span>
+          <strong id="stepsMetric">0</strong>
+        </article>
+
+        <article class="metric-card">
+          <span>Cable Runs</span>
+          <strong id="runsMetric">0</strong>
+        </article>
+
+        <article class="metric-card">
+          <span>Total Length</span>
+          <strong id="lengthMetric">0m</strong>
+        </article>
+
+        <article class="metric-card">
+          <span>Progress</span>
+          <strong id="progressMetric">0%</strong>
+        </article>
+      </section>
+
+      <section class="module-layout">
+
+        <section>
+
+          <section class="panel panel-pad">
+            <div class="task-header">
+              <div>
+                <p class="panel-title">Smart Hands Work Order</p>
+                <h2 id="taskTitle">Task not loaded</h2>
+                <p id="taskDescription">
+                  Select a Smart Hands task to generate field guidance.
+                </p>
+              </div>
+
+              <span class="status-pill pending" id="taskStatus">Ready</span>
+            </div>
+
+            <div class="summary-grid" id="taskSummary"></div>
+          </section>
+
+          <section class="panel panel-pad section-gap">
+            <p class="panel-title">Guided Technician Workflow</p>
+            <div class="step-list" id="stepList"></div>
+          </section>
+
+          <section class="panel panel-pad section-gap">
+            <p class="panel-title">Cable Run Sheet for Technician</p>
+
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Run</th>
+                    <th>From</th>
+                    <th>To</th>
+                    <th>Cable Used</th>
+                    <th>Length</th>
+                    <th>Connector</th>
+                    <th>Label</th>
+                    <th>Field Note</th>
+                  </tr>
+                </thead>
+                <tbody id="cableRunRows"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="panel panel-pad section-gap">
+            <p class="panel-title">Evidence Capture Plan</p>
+            <div class="evidence-grid" id="evidenceGrid"></div>
+          </section>
+
+          <section class="panel panel-pad section-gap">
+            <div class="task-header">
+              <div>
+                <p class="panel-title">Closure Report Draft</p>
+                <h2>End-of-Task Summary</h2>
+                <p>
+                  Generate a closure draft after the technician completes the guided steps.
+                  Later this can become an email draft, PDF report or backend record.
+                </p>
+              </div>
+            </div>
+
+            <div class="closure-actions">
+              <button class="btn-primary" id="generateClosureBtn" type="button">
+                Generate Closure Draft
+              </button>
+              <button class="btn" id="copyClosureBtn" type="button">
+                Copy Draft
+              </button>
+              <button class="btn-ghost" id="resetStepsBtn" type="button">
+                Reset Steps
+              </button>
+            </div>
+
+            <textarea id="closureDraft" placeholder="Closure draft will appear here after generation."></textarea>
+            <div class="toast" id="toastMessage">Copied to clipboard.</div>
+          </section>
+
+        </section>
+
+        <aside class="panel panel-pad detail-panel">
+          <p class="panel-title">Execution Control</p>
+
+          <h2 id="controlTitle">No task selected</h2>
+          <p class="detail-subtitle" id="controlSubtitle">
+            Load a task to review readiness.
+          </p>
+
+          <div class="right-status">
+            <span class="status-pill pending" id="controlStatus">Ready</span>
+          </div>
+
+          <div id="controlDetails"></div>
+
+          <div class="action-stack">
+            <button class="btn-primary" id="startTaskBtn" type="button">
+              Start Guided Task
+            </button>
+
+            <button class="btn-success" id="completeTaskBtn" type="button">
+              Mark Task Complete
+            </button>
+
+            <a class="btn" id="openConnectionDetails" href="/connection-details">
+              Back to Connection Details
+            </a>
+
+            <a class="btn" id="openConnectivityMap" href="/connectivity-map">
+              Open Connectivity Map
+            </a>
+
+            <a class="btn" id="openRackView" href="/rack-view">
+              Open Source Rack
+            </a>
+
+            <a class="btn" href="/dashboard">
+              Back to Operations Hub
+            </a>
+          </div>
+
+          <div class="notes-panel">
+            <strong>Dispatch Note</strong>
+            <p id="dispatchNote">
+              Review readiness before starting the task.
+            </p>
+          </div>
+        </aside>
+
+      </section>
+
+      <section class="focus-grid">
+        <article class="focus-card">
+          <p class="panel-title">Field Execution</p>
+          <h3>Step-by-step guidance</h3>
+          <p>
+            The technician receives ordered steps, exact endpoints, cable labels,
+            cable type and length per run.
+          </p>
+        </article>
+
+        <article class="focus-card">
+          <p class="panel-title">Evidence</p>
+          <h3>Photos and notes</h3>
+          <p>
+            Evidence placeholders define what should be captured before closing the work.
+          </p>
+        </article>
+
+        <article class="focus-card">
+          <p class="panel-title">Closure</p>
+          <h3>Ready for reporting</h3>
+          <p>
+            A closure draft can be generated after completion and later connected to email,
+            ticket updates or PDF export.
+          </p>
+        </article>
+      </section>
+
+    </main>
+  </div>
+
+  <script>
+    const rivModel = {
+      companies: [
+        {
+          id: "romanoti",
+          name: "RomanoTI-Solutions Inc.",
+          datacenters: [
+            {
+              id: "demodc01",
+              name: "DemoDC-01",
+              tasks: [
+                {
+                  id: "task-core-app",
+                  title: "Patch CORE-SW-01 Eth5 to SRV-APP-01 NIC1",
+                  status: "ready",
+                  priority: "Normal",
+                  taskType: "New patch / validation",
+                  ticketRef: "RIV-PILOT-1001",
+                  connectionId: "RIV-DEMO-CIR-001",
+                  changeWindow: "Pilot window / no production impact",
+                  source: "CORE-SW-01 Eth5 / Rack R42 RU39",
+                  destination: "SRV-APP-01 NIC1 / Rack R42 RU19",
+                  speed: "10 Gbps",
+                  vlan: "120",
+                  totalLength: "23m",
+                  description: "Execute and validate the application server access path using the approved cable run sheet.",
+                  dispatchNote: "Task is ready for execution. Capture source, destination and link LED evidence.",
+                  cableRuns: [
+                    {
+                      from: "CORE-SW-01 Eth5 / Rack R42 RU39",
+                      to: "OH-A12 Port 05 / Row A",
+                      cableUsed: "LC-LC MM Fiber patch",
+                      length: "3m",
+                      connector: "LC-LC / SFP+ SR",
+                      label: "R42-CORE-Eth5_to_OH-A12-05",
+                      note: "Install from source switch front panel to overhead panel. Leave controlled service loop."
+                    },
+                    {
+                      from: "OH-A12 Port 05",
+                      to: "MDF-A Panel A Port 14",
+                      cableUsed: "LC-LC MM Fiber trunk",
+                      length: "8m",
+                      connector: "LC-LC",
+                      label: "OH-A12-05_to_MDF-A-A14",
+                      note: "Follow overhead tray route. Confirm fiber polarity before patching."
+                    },
+                    {
+                      from: "MDF-A Panel A Port 14",
+                      to: "BB-01 Pair 07",
+                      cableUsed: "LC-LC MM Fiber backbone",
+                      length: "7m",
+                      connector: "LC-LC",
+                      label: "MDF-A-A14_to_BB-01-P07",
+                      note: "Backbone segment already documented. Validate panel label only."
+                    },
+                    {
+                      from: "BB-01 Pair 07",
+                      to: "OH-B08 Port 09",
+                      cableUsed: "LC-LC MM Fiber trunk",
+                      length: "4m",
+                      connector: "LC-LC",
+                      label: "BB-01-P07_to_OH-B08-09",
+                      note: "Route back to Row A overhead return."
+                    },
+                    {
+                      from: "OH-B08 Port 09",
+                      to: "SRV-APP-01 NIC1 / Rack R42 RU19",
+                      cableUsed: "LC-LC MM Fiber patch",
+                      length: "1m",
+                      connector: "LC-LC / SFP+ SR",
+                      label: "OH-B08-09_to_R42-SRVAPP-NIC1",
+                      note: "Patch to server NIC1. Confirm link LED and speed after connection."
+                    }
+                  ],
+                  evidence: [
+                    {
+                      title: "Source Port Photo",
+                      description: "Capture CORE-SW-01 Eth5 with visible label and cable connected."
+                    },
+                    {
+                      title: "Destination Port Photo",
+                      description: "Capture SRV-APP-01 NIC1 with visible label and cable connected."
+                    },
+                    {
+                      title: "Link Validation",
+                      description: "Capture link LED or interface status confirmation after patching."
+                    }
+                  ],
+                  steps: [
+                    {
+                      title: "Confirm work order and safety scope",
+                      instruction: "Review ticket RIV-PILOT-1001, source/destination endpoints, change window and cable list before touching equipment.",
+                      expected: "Technician confirms scope and no production-impacting action is outside the approved pilot path."
+                    },
+                    {
+                      title: "Verify source rack and source port",
+                      instruction: "Go to Rack R42, locate CORE-SW-01 at RU39-38 and identify Eth5.",
+                      expected: "CORE-SW-01 Eth5 is physically identified and matches the RIV label."
+                    },
+                    {
+                      title: "Install cable run 1",
+                      instruction: "Patch CORE-SW-01 Eth5 to OH-A12 Port 05 using LC-LC MM Fiber patch, 3m.",
+                      expected: "Cable label R42-CORE-Eth5_to_OH-A12-05 is applied."
+                    },
+                    {
+                      title: "Validate intermediate path",
+                      instruction: "Follow the approved runs through OH-A12, MDF-A, BB-01 and OH-B08 in the exact order shown in the cable run sheet.",
+                      expected: "All intermediate labels are confirmed and no undocumented port is used."
+                    },
+                    {
+                      title: "Patch destination endpoint",
+                      instruction: "Patch OH-B08 Port 09 to SRV-APP-01 NIC1 using LC-LC MM Fiber patch, 1m.",
+                      expected: "Destination cable is seated and label OH-B08-09_to_R42-SRVAPP-NIC1 is visible."
+                    },
+                    {
+                      title: "Confirm link and capture evidence",
+                      instruction: "Confirm link LED / interface status, capture source, destination and link validation evidence.",
+                      expected: "Link is active at 10 Gbps and required evidence is captured."
+                    }
+                  ]
+                },
+                {
+                  id: "task-core-fw",
+                  title: "Review CORE-SW-01 Eth14 to FW-01 Port 3",
+                  status: "review",
+                  priority: "High",
+                  taskType: "Review before patch / label confirmation",
+                  ticketRef: "RIV-PILOT-1002",
+                  connectionId: "RIV-DEMO-CIR-002",
+                  changeWindow: "Requires approval before field change",
+                  source: "CORE-SW-01 Eth14 / Rack R42 RU39",
+                  destination: "FW-01 Port 3 / Rack R42 RU27",
+                  speed: "1 Gbps",
+                  vlan: "WAN / Edge",
+                  totalLength: "14m",
+                  description: "Review firewall handoff path. Physical label confirmation is required before normal execution.",
+                  dispatchNote: "Do not execute as a normal patch until FW-01 Port 3 and Patch-CAB-23 labels are confirmed.",
+                  cableRuns: [
+                    {
+                      from: "CORE-SW-01 Eth14 / Rack R42 RU39",
+                      to: "OH-A12 Port 14 / Row A",
+                      cableUsed: "Cat6A patch lead",
+                      length: "2m",
+                      connector: "RJ45",
+                      label: "R42-CORE-Eth14_to_OH-A12-14",
+                      note: "Confirm switch port label. Recent flap was reported on this path."
+                    },
+                    {
+                      from: "OH-A12 Port 14",
+                      to: "MDF-A Panel A Port 23",
+                      cableUsed: "Cat6A trunk",
+                      length: "5m",
+                      connector: "RJ45",
+                      label: "OH-A12-14_to_MDF-A-A23",
+                      note: "Verify trunk label before touching existing patch."
+                    },
+                    {
+                      from: "MDF-A Panel A Port 23",
+                      to: "Patch-CAB-23",
+                      cableUsed: "Cat6A patch lead",
+                      length: "2m",
+                      connector: "RJ45",
+                      label: "MDF-A-A23_to_PATCH-CAB-23",
+                      note: "This segment requires review."
+                    },
+                    {
+                      from: "Patch-CAB-23",
+                      to: "OH-B03 Port 03",
+                      cableUsed: "Cat6A trunk",
+                      length: "3m",
+                      connector: "RJ45",
+                      label: "PATCH-CAB-23_to_OH-B03-03",
+                      note: "Confirm route continuity after MDF patch review."
+                    },
+                    {
+                      from: "OH-B03 Port 03",
+                      to: "FW-01 Port 3 / Rack R42 RU27",
+                      cableUsed: "Cat6A patch lead",
+                      length: "2m",
+                      connector: "RJ45",
+                      label: "OH-B03-03_to_R42-FW01-P3",
+                      note: "Confirm firewall Port 3 before patching."
+                    }
+                  ],
+                  evidence: [
+                    {
+                      title: "Patch-CAB-23 Label",
+                      description: "Capture clear label photo before moving or installing cable."
+                    },
+                    {
+                      title: "FW-01 Port 3",
+                      description: "Capture firewall Port 3 front panel label and current state."
+                    },
+                    {
+                      title: "Approval Evidence",
+                      description: "Capture note or approval reference before execution."
+                    }
+                  ],
+                  steps: [
+                    {
+                      title: "Confirm review-only status",
+                      instruction: "Verify that this task is a review task, not an immediate execution task.",
+                      expected: "Technician understands the path requires label confirmation."
+                    },
+                    {
+                      title: "Inspect CORE-SW-01 Eth14",
+                      instruction: "Go to Rack R42 and confirm CORE-SW-01 Eth14 physical label.",
+                      expected: "Source label is confirmed."
+                    },
+                    {
+                      title: "Inspect MDF and Patch-CAB-23",
+                      instruction: "Locate MDF-A Panel A Port 23 and Patch-CAB-23. Do not disconnect anything without approval.",
+                      expected: "Patch-CAB-23 is identified and photographed."
+                    },
+                    {
+                      title: "Inspect FW-01 Port 3",
+                      instruction: "Confirm FW-01 Port 3 label and current cable state.",
+                      expected: "Destination port is confirmed and photographed."
+                    },
+                    {
+                      title: "Report findings",
+                      instruction: "Generate closure draft with all observed labels and any mismatch.",
+                      expected: "Engineer receives a clear review result."
+                    }
+                  ]
+                },
+                {
+                  id: "task-storage-backup",
+                  title: "Patch STORAGE-01 iSCSI1 to BACKUP-01 ETH3",
+                  status: "ready",
+                  priority: "Normal",
+                  taskType: "Storage backup connectivity",
+                  ticketRef: "RIV-PILOT-1003",
+                  connectionId: "RIV-DEMO-CIR-003",
+                  changeWindow: "Pilot window / storage validation",
+                  source: "STORAGE-01 iSCSI1 / Rack R42 RU15",
+                  destination: "BACKUP-01 ETH3 / Rack R44 RU34",
+                  speed: "10 Gbps",
+                  vlan: "150",
+                  totalLength: "31m",
+                  description: "Execute storage-to-backup connection from Rack R42 to Rack R44 through OH, MDF and backbone.",
+                  dispatchNote: "Connectivity is ready. Technician should note Rack R44 has a separate PDU-B review flag unrelated to this patch.",
+                  cableRuns: [
+                    {
+                      from: "STORAGE-01 iSCSI1 / Rack R42 RU15",
+                      to: "OH-A09 Port 11",
+                      cableUsed: "LC-LC MM Fiber patch",
+                      length: "4m",
+                      connector: "LC-LC / SFP+ SR",
+                      label: "R42-STORAGE-iSCSI1_to_OH-A09-11",
+                      note: "Confirm storage port and clean fiber before insertion."
+                    },
+                    {
+                      from: "OH-A09 Port 11",
+                      to: "MDF-A Panel S Port 04",
+                      cableUsed: "LC-LC MM Fiber trunk",
+                      length: "9m",
+                      connector: "LC-LC",
+                      label: "OH-A09-11_to_MDF-A-S04",
+                      note: "Route through overhead tray to storage distribution panel."
+                    },
+                    {
+                      from: "MDF-A Panel S Port 04",
+                      to: "BB-STOR-02 Pair 12",
+                      cableUsed: "LC-LC MM Fiber backbone",
+                      length: "11m",
+                      connector: "LC-LC",
+                      label: "MDF-A-S04_to_BB-STOR-02-P12",
+                      note: "Validate pair 12 assignment before patch."
+                    },
+                    {
+                      from: "BB-STOR-02 Pair 12",
+                      to: "OH-C04 Port 18",
+                      cableUsed: "LC-LC MM Fiber trunk",
+                      length: "5m",
+                      connector: "LC-LC",
+                      label: "BB-STOR-02-P12_to_OH-C04-18",
+                      note: "Return route to backup rack overhead area."
+                    },
+                    {
+                      from: "OH-C04 Port 18",
+                      to: "BACKUP-01 ETH3 / Rack R44 RU34",
+                      cableUsed: "LC-LC MM Fiber patch",
+                      length: "2m",
+                      connector: "LC-LC / SFP+ SR",
+                      label: "OH-C04-18_to_R44-BACKUP-ETH3",
+                      note: "Confirm backup device link LED and storage VLAN reachability."
+                    }
+                  ],
+                  evidence: [
+                    {
+                      title: "Storage Source Photo",
+                      description: "Capture STORAGE-01 iSCSI1 with visible label and fiber connection."
+                    },
+                    {
+                      title: "Backup Destination Photo",
+                      description: "Capture BACKUP-01 ETH3 with visible label and fiber connection."
+                    },
+                    {
+                      title: "VLAN / Link Validation",
+                      description: "Capture link LED or interface validation after patching."
+                    }
+                  ],
+                  steps: [
+                    {
+                      title: "Review storage path",
+                      instruction: "Confirm source Rack R42, destination Rack R44, VLAN 150 and 10 Gbps optics.",
+                      expected: "Path details match the approved RIV connection."
+                    },
+                    {
+                      title: "Verify source endpoint",
+                      instruction: "Locate STORAGE-01 at Rack R42 RU15-14 and identify iSCSI1.",
+                      expected: "Source port is identified."
+                    },
+                    {
+                      title: "Install source to OH run",
+                      instruction: "Patch STORAGE-01 iSCSI1 to OH-A09 Port 11 using 4m LC-LC MM Fiber patch.",
+                      expected: "Cable is labeled and cleanly routed."
+                    },
+                    {
+                      title: "Patch MDF/backbone path",
+                      instruction: "Follow OH-A09 → MDF-A → BB-STOR-02 → OH-C04 using the exact cable run sheet.",
+                      expected: "All intermediate connections are completed in order."
+                    },
+                    {
+                      title: "Patch destination endpoint",
+                      instruction: "Patch OH-C04 Port 18 to BACKUP-01 ETH3 using 2m LC-LC MM Fiber patch.",
+                      expected: "Destination is patched and label is visible."
+                    },
+                    {
+                      title: "Validate storage connectivity",
+                      instruction: "Confirm link LED/interface status and capture required evidence.",
+                      expected: "10 Gbps link and VLAN 150 are validated."
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    };
+
+    const $ = (id) => document.getElementById(id);
+
+    let activeCompany = null;
+    let activeDatacenter = null;
+    let activeTask = null;
+    let completedSteps = new Set();
+    let taskStarted = false;
+    let taskCompleted = false;
+
+    document.addEventListener("DOMContentLoaded", () => {
+      loadSessionInfo();
+      initWorkspace();
+      attachEvents();
+      applyIncomingContext();
+      loadTask();
+    });
+
+    function initWorkspace() {
+      $("companySelect").innerHTML = rivModel.companies
+        .map((company) => `<option value="${escapeHtml(company.id)}">${escapeHtml(company.name)}</option>`)
+        .join("");
+
+      activeCompany = rivModel.companies[0];
+
+      populateDatacenters();
+      activeDatacenter = activeCompany.datacenters[0];
+      $("datacenterSelect").value = activeDatacenter.id;
+
+      populateTasks();
+      activeTask = activeDatacenter.tasks[0];
+      $("taskSelect").value = activeTask.id;
+    }
+
+    function populateDatacenters() {
+      $("datacenterSelect").innerHTML = activeCompany.datacenters
+        .map((dc) => `<option value="${escapeHtml(dc.id)}">${escapeHtml(dc.name)}</option>`)
+        .join("");
+    }
+
+    function populateTasks() {
+      $("taskSelect").innerHTML = activeDatacenter.tasks
+        .map((task) => `<option value="${escapeHtml(task.id)}">${escapeHtml(task.title)}</option>`)
+        .join("");
+    }
+
+    function attachEvents() {
+      $("companySelect").addEventListener("change", () => {
+        activeCompany = rivModel.companies.find((company) => company.id === $("companySelect").value) || rivModel.companies[0];
+        populateDatacenters();
+        activeDatacenter = activeCompany.datacenters[0];
+        $("datacenterSelect").value = activeDatacenter.id;
+
+        populateTasks();
+        activeTask = activeDatacenter.tasks[0];
+        $("taskSelect").value = activeTask.id;
+        resetTaskState();
+        loadTask();
+      });
+
+      $("datacenterSelect").addEventListener("change", () => {
+        activeDatacenter = activeCompany.datacenters.find((dc) => dc.id === $("datacenterSelect").value) || activeCompany.datacenters[0];
+
+        populateTasks();
+        activeTask = activeDatacenter.tasks[0];
+        $("taskSelect").value = activeTask.id;
+        resetTaskState();
+        loadTask();
+      });
+
+      $("taskSelect").addEventListener("change", () => {
+        activeTask = activeDatacenter.tasks.find((task) => task.id === $("taskSelect").value) || activeDatacenter.tasks[0];
+        resetTaskState();
+        loadTask();
+      });
+
+      $("loadTaskBtn").addEventListener("click", loadTask);
+
+      $("startTaskBtn").addEventListener("click", () => {
+        taskStarted = true;
+        taskCompleted = false;
+        renderControlPanel();
+        renderMetrics();
+      });
+
+      $("completeTaskBtn").addEventListener("click", () => {
+        taskStarted = true;
+        taskCompleted = true;
+        activeTask.steps.forEach((_, index) => completedSteps.add(index));
+        renderSteps();
+        renderControlPanel();
+        renderMetrics();
+        generateClosureDraft();
+      });
+
+      $("generateClosureBtn").addEventListener("click", generateClosureDraft);
+      $("copyClosureBtn").addEventListener("click", copyClosureDraft);
+
+      $("resetStepsBtn").addEventListener("click", () => {
+        resetTaskState();
+        renderSteps();
+        renderControlPanel();
+        renderMetrics();
+        $("closureDraft").value = "";
+      });
+    }
+
+    function applyIncomingContext() {
+      const params = new URLSearchParams(window.location.search);
+      const requestedConnection = params.get("connection") || "";
+      const requestedPath = params.get("path") || "";
+      const requestedDevice = params.get("device") || "";
+      const requestedPort = params.get("port") || "";
+      const requestedRack = params.get("rack") || "";
+
+      let sessionContext = {};
+
+      try {
+        sessionContext = JSON.parse(sessionStorage.getItem("rivSelectedContext") || "{}");
+      } catch {
+        sessionContext = {};
+      }
+
+      const combined = [
+        requestedConnection,
+        requestedPath,
+        requestedDevice,
+        requestedPort,
+        requestedRack,
+        sessionContext.connectionName,
+        sessionContext.pathName,
+        sessionContext.sourceDevice,
+        sessionContext.sourcePort,
+        sessionContext.destinationDevice,
+        sessionContext.destinationPort
+      ].filter(Boolean).join(" ").toLowerCase();
+
+      if (!combined) {
+        return;
+      }
+
+      const matchingTask = activeDatacenter.tasks.find((task) => {
+        const haystack = [
+          task.title,
+          task.source,
+          task.destination,
+          task.ticketRef,
+          task.connectionId
+        ].join(" ").toLowerCase();
+
+        return combined.split(/\s+/).some((token) => token.length > 2 && haystack.includes(token));
+      });
+
+      if (matchingTask) {
+        activeTask = matchingTask;
+        $("taskSelect").value = activeTask.id;
+      }
+    }
+
+    function resetTaskState() {
+      completedSteps = new Set();
+      taskStarted = false;
+      taskCompleted = false;
+    }
+
+    function loadTask() {
+      if (!activeCompany || !activeDatacenter || !activeTask) {
+        return;
+      }
+
+      renderMetrics();
+      renderTaskSummary();
+      renderSteps();
+      renderCableRuns();
+      renderEvidencePlan();
+      renderControlPanel();
+      updateActionLinks();
+      saveSelectedContext();
+    }
+
+    function renderMetrics() {
+      const progress = getProgressPercent();
+
+      $("taskStatusMetric").textContent = getTaskStateLabel();
+      $("stepsMetric").textContent = activeTask.steps.length;
+      $("runsMetric").textContent = activeTask.cableRuns.length;
+      $("lengthMetric").textContent = `${calculateTotalMeters(activeTask)}m`;
+      $("progressMetric").textContent = `${progress}%`;
+      $("sideSite").textContent = activeDatacenter.name;
+    }
+
+    function renderTaskSummary() {
+      $("taskTitle").textContent = activeTask.title;
+      $("taskDescription").textContent = activeTask.description;
+      $("taskStatus").textContent = getTaskStateLabel();
+      $("taskStatus").className = `status-pill ${getStatusClass()}`;
+
+      $("taskSummary").innerHTML = `
+        <article class="summary-card">
+          <span>Source</span>
+          <strong>${escapeHtml(activeTask.source)}</strong>
+        </article>
+
+        <article class="summary-card">
+          <span>Destination</span>
+          <strong>${escapeHtml(activeTask.destination)}</strong>
+        </article>
+
+        <article class="summary-card">
+          <span>Ticket / Circuit</span>
+          <strong>${escapeHtml(activeTask.ticketRef)} · ${escapeHtml(activeTask.connectionId)}</strong>
+        </article>
+
+        <article class="summary-card">
+          <span>Speed / VLAN</span>
+          <strong>${escapeHtml(activeTask.speed)} · VLAN ${escapeHtml(activeTask.vlan)}</strong>
+        </article>
+
+        <article class="summary-card">
+          <span>Task Type</span>
+          <strong>${escapeHtml(activeTask.taskType)}</strong>
+        </article>
+
+        <article class="summary-card">
+          <span>Change Window</span>
+          <strong>${escapeHtml(activeTask.changeWindow)}</strong>
+        </article>
+      `;
+    }
+
+    function renderSteps() {
+      $("stepList").innerHTML = activeTask.steps.map((step, index) => {
+        const isComplete = completedSteps.has(index);
+
+        return `
+          <article class="step-card ${isComplete ? "complete" : ""}">
+            <div class="step-index">${isComplete ? "✓" : index + 1}</div>
+
+            <div class="step-content">
+              <h3>${escapeHtml(step.title)}</h3>
+              <p>${escapeHtml(step.instruction)}</p>
+              <small>Expected result: ${escapeHtml(step.expected)}</small>
+            </div>
+
+            <button class="step-toggle" type="button" data-step-index="${index}">
+              ${isComplete ? "Completed" : "Mark Complete"}
+            </button>
+          </article>
+        `;
+      }).join("");
+
+      document.querySelectorAll("[data-step-index]").forEach((button) => {
+        button.addEventListener("click", () => {
+          const index = Number(button.dataset.stepIndex);
+
+          if (completedSteps.has(index)) {
+            completedSteps.delete(index);
+          } else {
+            completedSteps.add(index);
+          }
+
+          if (completedSteps.size < activeTask.steps.length) {
+            taskCompleted = false;
+          }
+
+          renderSteps();
+          renderControlPanel();
+          renderMetrics();
+          saveSelectedContext();
+        });
+      });
+    }
+
+    function renderCableRuns() {
+      $("cableRunRows").innerHTML = activeTask.cableRuns.map((run, index) => `
+        <tr>
+          <td><span class="run-id">${index + 1}</span></td>
+          <td>
+            <strong>${escapeHtml(run.from)}</strong>
+            <small>Start point</small>
+          </td>
+          <td>
+            <strong>${escapeHtml(run.to)}</strong>
+            <small>End point</small>
+          </td>
+          <td><strong>${escapeHtml(run.cableUsed)}</strong></td>
+          <td><strong>${escapeHtml(run.length)}</strong></td>
+          <td><strong>${escapeHtml(run.connector)}</strong></td>
+          <td><strong>${escapeHtml(run.label)}</strong></td>
+          <td><small>${escapeHtml(run.note)}</small></td>
+        </tr>
+      `).join("");
+    }
+
+    function renderEvidencePlan() {
+      $("evidenceGrid").innerHTML = activeTask.evidence.map((evidence) => `
+        <article class="evidence-card">
+          <h3>${escapeHtml(evidence.title)}</h3>
+          <p>${escapeHtml(evidence.description)}</p>
+          <div class="fake-upload">Evidence placeholder<br>Photo / note / validation</div>
+        </article>
+      `).join("");
+    }
+
+    function renderControlPanel() {
+      $("controlTitle").textContent = getTaskStateLabel();
+      $("controlSubtitle").textContent = `${activeTask.ticketRef} · ${activeTask.priority} priority`;
+      $("controlStatus").textContent = getTaskStateLabel();
+      $("controlStatus").className = `status-pill ${getStatusClass()}`;
+
+      $("controlDetails").innerHTML = `
+        <div class="detail-row">
+          <span>Selected Task</span>
+          <strong>${escapeHtml(activeTask.title)}</strong>
+        </div>
+
+        <div class="detail-row">
+          <span>Execution Status</span>
+          <strong>${escapeHtml(getTaskStateLabel())}</strong>
+        </div>
+
+        <div class="detail-row">
+          <span>Progress</span>
+          <strong>${escapeHtml(getProgressPercent())}% · ${completedSteps.size}/${activeTask.steps.length} steps completed</strong>
+        </div>
+
+        <div class="detail-row">
+          <span>Required Materials</span>
+          <div class="compact-list">
+            ${Object.entries(getCableTotals(activeTask)).map(([cableType, data]) => `
+              <div class="compact-row">
+                <strong>${escapeHtml(cableType)} · ${data.count} run${data.count === 1 ? "" : "s"}</strong>
+                <span>${data.meters}m</span>
+              </div>
+            `).join("")}
+          </div>
+        </div>
+
+        <div class="detail-row">
+          <span>Evidence Required</span>
+          <strong>${escapeHtml(activeTask.evidence.length)} evidence items</strong>
+        </div>
+      `;
+
+      $("dispatchNote").textContent = activeTask.dispatchNote;
+    }
+
+    function generateClosureDraft() {
+      const status = taskCompleted || completedSteps.size === activeTask.steps.length
+        ? "Completed"
+        : taskStarted || completedSteps.size > 0
+          ? "In progress / partial completion"
+          : "Prepared / not started";
+
+      const cableRuns = activeTask.cableRuns.map((run, index) => {
+        return `${index + 1}. ${run.from} -> ${run.to}
+   Cable Used: ${run.cableUsed}
+   Required Length: ${run.length}
+   Connector: ${run.connector}
+   Label: ${run.label}
+   Field Note: ${run.note}`;
+      }).join("\n\n");
+
+      const evidence = activeTask.evidence.map((item, index) => {
+        return `${index + 1}. ${item.title}: ${item.description}`;
+      }).join("\n");
+
+      const completedStepText = activeTask.steps.map((step, index) => {
+        const stepState = completedSteps.has(index) || taskCompleted ? "DONE" : "PENDING";
+        return `${index + 1}. [${stepState}] ${step.title}`;
+      }).join("\n");
+
+      const totals = Object.entries(getCableTotals(activeTask)).map(([cableType, data]) => {
+        return `- ${cableType}: ${data.count} run${data.count === 1 ? "" : "s"} / ${data.meters}m total`;
+      }).join("\n");
+
+      $("closureDraft").value = `Romanoti RIV - Smart Hands Closure Draft
+
+Task: ${activeTask.title}
+Ticket: ${activeTask.ticketRef}
+Circuit: ${activeTask.connectionId}
+Status: ${status}
+Priority: ${activeTask.priority}
+Data Center: ${activeDatacenter.name}
+Company: ${activeCompany.name}
+
+Source:
+${activeTask.source}
+
+Destination:
+${activeTask.destination}
+
+Speed / VLAN:
+${activeTask.speed} / VLAN ${activeTask.vlan}
+
+Change Window:
+${activeTask.changeWindow}
+
+Technician Workflow Progress:
+${completedStepText}
+
+Cable Runs Executed / Reviewed:
+${cableRuns}
+
+Cable Totals:
+${totals}
+
+Evidence Required:
+${evidence}
+
+Dispatch / Field Note:
+${activeTask.dispatchNote}
+
+Closure Notes:
+- Confirmed work order scope before execution.
+- Followed RIV cable run sheet connection-to-connection.
+- Cable labels and required lengths were reviewed.
+- Evidence should be attached before final ticket closure.
+`;
+    }
+
+    async function copyClosureDraft() {
+      const value = $("closureDraft").value.trim();
+
+      if (!value) {
+        generateClosureDraft();
+      }
+
+      try {
+        await navigator.clipboard.writeText($("closureDraft").value);
+        showToast("Closure draft copied to clipboard.");
+      } catch {
+        $("closureDraft").select();
+        document.execCommand("copy");
+        showToast("Closure draft copied.");
+      }
+    }
+
+    function updateActionLinks() {
+      const params = new URLSearchParams({
+        company: activeCompany.name,
+        datacenter: activeDatacenter.name,
+        task: activeTask.title,
+        ticket: activeTask.ticketRef,
+        connection: activeTask.title,
+        connectionId: activeTask.connectionId,
+        rack: activeTask.source,
+        device: extractDeviceFromEndpoint(activeTask.source),
+        port: extractPortFromEndpoint(activeTask.source)
+      });
+
+      $("openConnectionDetails").href = `/connection-details?${params.toString()}`;
+      $("openConnectivityMap").href = `/connectivity-map?${params.toString()}`;
+      $("openRackView").href = `/rack-view?${params.toString()}`;
+    }
+
+    function saveSelectedContext() {
+      const context = {
+        company: activeCompany.name,
+        datacenter: activeDatacenter.name,
+        taskId: activeTask.id,
+        taskTitle: activeTask.title,
+        taskStatus: getTaskStateLabel(),
+        ticketRef: activeTask.ticketRef,
+        connectionId: activeTask.connectionId,
+        source: activeTask.source,
+        destination: activeTask.destination,
+        speed: activeTask.speed,
+        vlan: activeTask.vlan,
+        cableRuns: activeTask.cableRuns,
+        cableTotals: getCableTotals(activeTask),
+        totalCableLength: `${calculateTotalMeters(activeTask)}m`,
+        completedSteps: Array.from(completedSteps),
+        progress: getProgressPercent()
+      };
+
+      sessionStorage.setItem("rivSelectedContext", JSON.stringify(context));
+    }
+
+    function getTaskStateLabel() {
+      if (taskCompleted || completedSteps.size === activeTask.steps.length) {
+        return "Completed";
+      }
+
+      if (taskStarted || completedSteps.size > 0) {
+        return "In Progress";
+      }
+
+      if (activeTask.status === "review") {
+        return "Needs Review";
+      }
+
+      return "Ready";
+    }
+
+    function getStatusClass() {
+      const label = getTaskStateLabel();
+
+      if (label === "Completed") return "";
+      if (label === "In Progress") return "pending";
+      if (label === "Needs Review") return "warning";
+      return "pending";
+    }
+
+    function getProgressPercent() {
+      if (!activeTask || activeTask.steps.length === 0) {
+        return 0;
+      }
+
+      if (taskCompleted) {
+        return 100;
+      }
+
+      return Math.round((completedSteps.size / activeTask.steps.length) * 100);
+    }
+
+    function getCableTotals(task) {
+      return task.cableRuns.reduce((totals, run) => {
+        const cableType = run.cableUsed || "Unspecified cable";
+        const meters = parseCableLengthMeters(run.length);
+
+        if (!totals[cableType]) {
+          totals[cableType] = {
+            count: 0,
+            meters: 0
+          };
+        }
+
+        totals[cableType].count += 1;
+        totals[cableType].meters += meters;
+
+        return totals;
+      }, {});
+    }
+
+    function calculateTotalMeters(task) {
+      return task.cableRuns.reduce((total, run) => {
+        return total + parseCableLengthMeters(run.length);
+      }, 0);
+    }
+
+    function parseCableLengthMeters(value) {
+      const match = String(value || "").match(/([\d.]+)\s*m/i);
+      return match ? Number(match[1]) : 0;
+    }
+
+    function extractDeviceFromEndpoint(endpoint) {
+      return String(endpoint || "").split(" ")[0] || "";
+    }
+
+    function extractPortFromEndpoint(endpoint) {
+      const parts = String(endpoint || "").split(" ");
+      return parts[1] || "";
+    }
+
+    function showToast(message) {
+      $("toastMessage").textContent = message;
+      $("toastMessage").classList.add("show");
+
+      window.setTimeout(() => {
+        $("toastMessage").classList.remove("show");
+      }, 2200);
+    }
+
+    async function loadSessionInfo() {
+      try {
+        const response = await fetch("/api/session", { credentials: "same-origin" });
+
+        if (!response.ok) {
+          return;
+        }
+
+        const session = await response.json();
+
+        if (session.display_name) {
+          $("displayName").textContent = session.display_name;
+          $("userInitials").textContent = getInitials(session.display_name);
+        }
+
+        if (session.display_role) {
+          $("displayRole").textContent = session.display_role;
+        }
+      } catch {
+        // The module remains usable even if session metadata is unavailable.
+      }
+    }
+
+    function getInitials(name) {
+      return String(name || "")
+        .trim()
+        .split(/\s+/)
+        .slice(0, 2)
+        .map((part) => part.charAt(0).toUpperCase())
+        .join("") || "MR";
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+  </script>
+</body>
+</html>
