@@ -994,163 +994,138 @@ def favicon():
 # RIV SUPABASE API ROUTES
 # ============================================================
 
+
+def _riv_status_code(response, success_code=200):
+    """
+    Return the HTTP status code for a repository response.
+
+    The repository may include status_code for errors such as 400, 404 or 503.
+    Successful GET endpoints return 200. Successful POST endpoints can override
+    with 201.
+    """
+    if response.get("success"):
+        return success_code
+
+    return response.get("status_code", 500)
+
+
+def _riv_query_payload():
+    """
+    Convert query string arguments into a simple dictionary for the repository.
+
+    Example:
+    /api/riv/devices?rack_id=<uuid>&limit=100
+    """
+    return dict(request.args)
+
+
+def _riv_json(action, payload=None, success_code=200):
+    """
+    Standard protected JSON response for RIV API endpoints.
+    """
+    response = repository_response(action, payload or {})
+    return jsonify(response), _riv_status_code(response, success_code=success_code)
+
+
 @app.route("/api/riv/health", methods=["GET"])
 @login_required
 def riv_health():
     """
     Verify backend connectivity with the dedicated RIV Supabase project.
     """
-    response = repository_response("health")
-    status_code = 200 if response.get("success") else 500
-    return jsonify(response), status_code
+    return _riv_json("health")
 
 
+@app.route("/api/riv/bootstrap", methods=["GET"])
 @app.route("/api/riv/workspace", methods=["GET"])
 @login_required
-def riv_workspace():
+def riv_bootstrap():
     """
-    Return the complete RIV workspace payload.
+    Return the initial RIV database payload for frontend modules.
 
-    Used by:
-    - Rack View
-    - Multi-Rack View
-    - Connectivity Map
-    - Smart Hands preparation
+    /api/riv/workspace is kept as an alias because earlier frontend work
+    used that name during the migration from static data to database data.
     """
-    response = repository_response("get_workspace_payload")
-    status_code = 200 if response.get("success") else 500
-    return jsonify(response), status_code
+    payload = _riv_query_payload()
+    payload.setdefault("limit", "500")
+    return _riv_json("bootstrap", payload)
 
 
-@app.route("/api/riv/companies", methods=["GET"])
+@app.route("/api/riv/rack-view", methods=["GET"])
 @login_required
-def riv_companies():
+def riv_rack_view_data():
     """
-    Return RIV companies.
-    """
-    response = repository_response("get_companies")
-    status_code = 200 if response.get("success") else 500
-    return jsonify(response), status_code
-
-
-@app.route("/api/riv/data-centers", methods=["GET"])
-@login_required
-def riv_data_centers():
-    """
-    Return RIV data centers.
+    Return Rack View data from Supabase.
 
     Optional query:
-    /api/riv/data-centers?company_id=<uuid>
+    /api/riv/rack-view?rack_id=<uuid>
     """
-    company_id = request.args.get("company_id")
-    response = repository_response("get_data_centers", company_id=company_id)
-    status_code = 200 if response.get("success") else 500
-    return jsonify(response), status_code
+    return _riv_json("rack-view", _riv_query_payload())
 
 
-@app.route("/api/riv/racks", methods=["GET"])
+@app.route("/api/riv/devices/<device_id>", methods=["GET"])
+@app.route("/api/riv/device-detail/<device_id>", methods=["GET"])
 @login_required
-def riv_racks():
+def riv_device_detail(device_id):
     """
-    Return RIV racks.
-
-    Optional query:
-    /api/riv/racks?data_center_id=<uuid>
+    Return one installed device with:
+    - device record
+    - linked asset/model image data
+    - visual asset ports
+    - runtime device ports
     """
-    data_center_id = request.args.get("data_center_id")
-    response = repository_response("get_racks", data_center_id=data_center_id)
-    status_code = 200 if response.get("success") else 500
-    return jsonify(response), status_code
+    return _riv_json("device-detail", {"device_id": device_id})
 
 
-@app.route("/api/riv/devices", methods=["GET"])
+@app.route("/api/riv/smart-hands/tasks", methods=["GET"])
 @login_required
-def riv_devices():
+def riv_smart_hands_tasks_alias():
     """
-    Return RIV devices.
-
-    Optional query:
-    /api/riv/devices?rack_id=<uuid>
+    Alias for Smart Hands task records.
     """
-    rack_id = request.args.get("rack_id")
-    response = repository_response("get_devices", rack_id=rack_id)
-    status_code = 200 if response.get("success") else 500
-    return jsonify(response), status_code
+    return _riv_json("smart-hands-tasks", _riv_query_payload())
 
 
-@app.route("/api/riv/device-assets", methods=["GET"])
+@app.route("/api/riv/smart-hands/tasks", methods=["POST"])
+@app.route("/api/riv/smart-hands-tasks", methods=["POST"])
 @login_required
-def riv_device_assets():
+def riv_create_smart_hands_task():
     """
-    Return RIV device asset definitions.
+    Create a Smart Hands task record.
 
-    These records describe real-world device models such as:
-    - Cisco Catalyst 9300-24T
-    - Fortinet FortiGate 100F
-    - Dell PowerEdge R650
+    This will be used later from Rack View / Port View when a user selects
+    a device or port and prepares technician work.
     """
-    response = repository_response("get_device_assets")
-    status_code = 200 if response.get("success") else 500
-    return jsonify(response), status_code
+    payload = request.get_json(silent=True) or {}
+    return _riv_json("create-smart-hands-task", payload, success_code=201)
 
 
-@app.route("/api/riv/device-asset-ports", methods=["GET"])
+@app.route("/api/riv/<resource_name>", methods=["GET"])
 @login_required
-def riv_device_asset_ports():
+def riv_list_resource(resource_name):
     """
-    Return expected physical ports for a device asset.
+    Generic safe list endpoint for supported RIV resources.
 
-    Optional query:
-    /api/riv/device-asset-ports?device_asset_id=<uuid>
+    Supported examples:
+    - /api/riv/companies
+    - /api/riv/data-centers
+    - /api/riv/racks
+    - /api/riv/device-assets
+    - /api/riv/device-asset-ports
+    - /api/riv/devices
+    - /api/riv/device-ports
+    - /api/riv/cable-segments
+    - /api/riv/connectivity-paths
+    - /api/riv/connectivity-path-hops
+    - /api/riv/smart-hands-tasks
+    - /api/riv/smart-hands-steps
+    - /api/riv/smart-hands-evidence-requirements
+
+    Optional filters are passed through only if the repository allows them.
     """
-    device_asset_id = request.args.get("device_asset_id")
-    response = repository_response(
-        "get_device_asset_ports",
-        device_asset_id=device_asset_id,
-    )
-    status_code = 200 if response.get("success") else 500
-    return jsonify(response), status_code
+    return _riv_json(resource_name, _riv_query_payload())
 
 
-@app.route("/api/riv/device-ports", methods=["GET"])
-@login_required
-def riv_device_ports():
-    """
-    Return live/instance ports for a specific installed device.
-
-    Optional query:
-    /api/riv/device-ports?device_id=<uuid>
-    """
-    device_id = request.args.get("device_id")
-    response = repository_response("get_device_ports", device_id=device_id)
-    status_code = 200 if response.get("success") else 500
-    return jsonify(response), status_code
-
-
-@app.route("/api/riv/connectivity-paths", methods=["GET"])
-@login_required
-def riv_connectivity_paths():
-    """
-    Return RIV connectivity paths.
-
-    Optional query:
-    /api/riv/connectivity-paths?rack_id=<uuid>
-    """
-    rack_id = request.args.get("rack_id")
-    response = repository_response("get_connectivity_paths", rack_id=rack_id)
-    status_code = 200 if response.get("success") else 500
-    return jsonify(response), status_code
-
-
-@app.route("/api/riv/smart-hands-tasks", methods=["GET"])
-@login_required
-def riv_smart_hands_tasks():
-    """
-    Return Smart Hands task preparation records.
-    """
-    response = repository_response("get_smart_hands_tasks")
-    status_code = 200 if response.get("success") else 500
-    return jsonify(response), status_code
 @app.route("/run-demo", methods=["POST"])
 @login_required
 def run_demo():
