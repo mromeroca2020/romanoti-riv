@@ -970,6 +970,36 @@
     const displayRole = document.getElementById("displayRole");
     const userInitials = document.getElementById("userInitials");
 
+    let rivLiveData = null;
+
+    async function loadDashboardLiveData() {
+      try {
+        const response = await fetch("/api/riv/bootstrap");
+
+        if (!response.ok) {
+          throw new Error("RIV dashboard live data failed with status " + response.status);
+        }
+
+        const payload = await response.json();
+        rivLiveData = payload?.data?.tables || null;
+
+        console.info("RIV dashboard live data loaded", {
+          companies: rivLiveData?.riv_companies?.length || 0,
+          dataCenters: rivLiveData?.riv_data_centers?.length || 0,
+          racks: rivLiveData?.riv_racks?.length || 0,
+          devices: rivLiveData?.riv_devices?.length || 0,
+          connectivityPaths: rivLiveData?.riv_connectivity_paths?.length || 0,
+          smartHandsTasks: rivLiveData?.riv_smart_hands_tasks?.length || 0
+        });
+
+        return rivLiveData;
+      } catch (error) {
+        rivLiveData = null;
+        console.warn("RIV dashboard live data unavailable; static dashboard remains active.", error);
+        return null;
+      }
+    }
+
     function getWorkspace() {
       return {
         company: companySelect.value,
@@ -1066,6 +1096,7 @@
     datacenterSelect.addEventListener("change", saveWorkspace);
     rackSelect.addEventListener("change", saveWorkspace);
 
+    loadDashboardLiveData();
     loadWorkspace();
     loadSessionInfo();
   </script>
